@@ -4,6 +4,7 @@ import RechnungenKit
 struct SettingsView: View {
     let keychainService: KeychainServiceProtocol
     let onSaved: () -> Void
+    var syncErrorMessage: String? = nil
 
     @State private var tokenInput: String = ""
     @State private var errorMessage: String?
@@ -11,6 +12,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let syncErrorMessage {
+                    Section("Letzter Sync-Fehler") {
+                        Text(syncErrorMessage).foregroundStyle(.red)
+                    }
+                }
                 Section("SeaTable API-Token") {
                     SecureField("Token", text: $tokenInput)
                     if let errorMessage {
