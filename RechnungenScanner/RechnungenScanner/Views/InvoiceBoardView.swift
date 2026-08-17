@@ -37,7 +37,6 @@ struct InvoiceBoardView: View {
                     Button("Einstellungen", systemImage: "gearshape", action: onShowSettings)
                 }
             }
-            .task { await viewModel.load() }
             .refreshable { await viewModel.load() }
         }
     }

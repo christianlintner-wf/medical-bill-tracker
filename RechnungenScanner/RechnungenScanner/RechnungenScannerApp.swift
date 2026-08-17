@@ -9,6 +9,7 @@ struct RechnungenScannerApp: App {
         WindowGroup {
             if let services = root.services {
                 RootView(repository: services.repository, syncEngine: services.syncEngine, onReload: { root.reload() })
+                    .id(ObjectIdentifier(services.syncEngine))
             } else {
                 SettingsView(keychainService: KeychainService(), onSaved: { root.reload() })
             }
