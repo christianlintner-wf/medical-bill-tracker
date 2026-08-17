@@ -3,7 +3,7 @@ import RechnungenKit
 
 struct InvoiceFormView: View {
     @Bindable var viewModel: ScanViewModel
-    let providers: [Provider]
+    @Bindable var providerPickerViewModel: ProviderPickerViewModel
     let pdfData: Data
     let onSaved: () -> Void
 
@@ -20,10 +20,14 @@ struct InvoiceFormView: View {
                         Text(patient.rawValue).tag(patient)
                     }
                 }
-                Picker("Arzt", selection: $viewModel.selectedProviderID) {
-                    Text("Kein Arzt").tag(UUID?.none)
-                    ForEach(providers) { provider in
-                        Text(provider.name).tag(Optional(provider.id))
+                NavigationLink {
+                    ProviderPickerView(viewModel: providerPickerViewModel, selectedProviderID: $viewModel.selectedProviderID)
+                } label: {
+                    HStack {
+                        Text("Arzt")
+                        Spacer()
+                        Text(selectedProviderName)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -38,5 +42,10 @@ struct InvoiceFormView: View {
             }
         }
         .navigationTitle("Neue Rechnung")
+    }
+
+    private var selectedProviderName: String {
+        guard let id = viewModel.selectedProviderID else { return "Kein Arzt" }
+        return providerPickerViewModel.providers.first(where: { $0.id == id })?.name ?? "Kein Arzt"
     }
 }

@@ -88,6 +88,49 @@ final class LocalStoreTests: XCTestCase {
         XCTAssertTrue(pending.isEmpty)
     }
 
+    func test_upsertInvoiceByRemoteID_preservesLocalStatusWhenUpdateIsPending() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian, status: .submittedToPublicInsurance)
+        try await store.upsertInvoice(invoice)
+        try await store.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+        try await store.enqueueOutboxEntry(operation: .updateInvoiceStatus, targetLocalID: invoice.id)
+
+        let row = SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"),
+            "Betrag": .number(150.0),
+            "Patient": .string("Christian"),
+            "Status": .string("Offen")
+        ])
+        try await store.upsertInvoiceByRemoteID(row: row)
+
+        let updated = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertEqual(updated?.status, .submittedToPublicInsurance)
+    }
+
+    func test_allInvoices_resolvesProviderNameFromProviderID() async throws {
+        let store = try makeStore()
+        let provider = Provider(name: "Dr. Mona Cooper")
+        try await store.upsertProvider(provider)
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian, providerID: provider.id)
+        try await store.upsertInvoice(invoice)
+
+        let stored = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertEqual(stored?.providerName, "Dr. Mona Cooper")
+    }
+
+    func test_hasPendingSync_reflectsSyncAndOutboxState() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+
+        let unsynced = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertEqual(unsynced?.hasPendingSync, true)
+
+        try await store.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+        let synced = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertEqual(synced?.hasPendingSync, false)
+    }
+
     func test_recordOutboxFailure_incrementsAttemptCount() async throws {
         let store = try makeStore()
         let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)

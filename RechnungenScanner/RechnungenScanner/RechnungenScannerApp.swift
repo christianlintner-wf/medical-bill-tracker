@@ -4,19 +4,14 @@ import RechnungenKit
 @main
 struct RechnungenScannerApp: App {
     @State private var root = CompositionRoot()
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             if let services = root.services {
-                RootView(repository: services.repository, syncEngine: services.syncEngine)
+                RootView(repository: services.repository, syncEngine: services.syncEngine, onReload: { root.reload() })
             } else {
                 SettingsView(keychainService: KeychainService(), onSaved: { root.reload() })
             }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active, let syncEngine = root.services?.syncEngine else { return }
-            Task { await syncEngine.processOutbox() }
         }
     }
 }
@@ -24,10 +19,14 @@ struct RechnungenScannerApp: App {
 private struct RootView: View {
     let repository: InvoiceRepositoryProtocol
     let syncEngine: SyncEngine
+    let onReload: () -> Void
 
     @State private var boardViewModel: InvoiceBoardViewModel
     @State private var scanFlowStep: ScanFlowStep?
     @State private var selectedInvoice: Invoice?
+    @State private var isShowingSettings = false
+    @State private var lastSyncError: String?
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum ScanFlowStep: Identifiable {
         case scanning
@@ -41,9 +40,10 @@ private struct RootView: View {
         }
     }
 
-    init(repository: InvoiceRepositoryProtocol, syncEngine: SyncEngine) {
+    init(repository: InvoiceRepositoryProtocol, syncEngine: SyncEngine, onReload: @escaping () -> Void) {
         self.repository = repository
         self.syncEngine = syncEngine
+        self.onReload = onReload
         _boardViewModel = State(initialValue: InvoiceBoardViewModel(repository: repository))
     }
 
@@ -51,7 +51,8 @@ private struct RootView: View {
         InvoiceBoardView(
             viewModel: boardViewModel,
             onSelectInvoice: { selectedInvoice = $0 },
-            onAddInvoice: { scanFlowStep = .scanning }
+            onAddInvoice: { scanFlowStep = .scanning },
+            onShowSettings: { isShowingSettings = true }
         )
         .sheet(item: $scanFlowStep) { step in
             switch step {
@@ -66,10 +67,7 @@ private struct RootView: View {
                     repository: repository,
                     onSaved: {
                         scanFlowStep = nil
-                        Task {
-                            await syncEngine.processOutbox()
-                            await boardViewModel.load()
-                        }
+                        Task { await syncAndReload() }
                     }
                 )
             }
@@ -79,7 +77,27 @@ private struct RootView: View {
                 InvoiceDetailView(viewModel: InvoiceEditViewModel(invoice: invoice, repository: repository))
             }
         }
-        .task { await syncEngine.processOutbox() }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(
+                keychainService: KeychainService(),
+                onSaved: {
+                    isShowingSettings = false
+                    onReload()
+                },
+                syncErrorMessage: lastSyncError
+            )
+        }
+        .task { await syncAndReload() }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await syncAndReload() }
+        }
+    }
+
+    private func syncAndReload() async {
+        await syncEngine.processOutbox()
+        await boardViewModel.load()
+        lastSyncError = await syncEngine.lastOutboxError()
     }
 }
 
@@ -90,7 +108,6 @@ private struct ScanReviewFlow: View {
 
     @State private var scanViewModel: ScanViewModel
     @State private var providerPickerViewModel: ProviderPickerViewModel
-    @State private var extractedFields: ExtractedInvoiceFields?
 
     init(pdfData: Data, repository: InvoiceRepositoryProtocol, onSaved: @escaping () -> Void) {
         self.pdfData = pdfData
@@ -106,7 +123,7 @@ private struct ScanReviewFlow: View {
         NavigationStack {
             InvoiceFormView(
                 viewModel: scanViewModel,
-                providers: providerPickerViewModel.providers,
+                providerPickerViewModel: providerPickerViewModel,
                 pdfData: pdfData,
                 onSaved: onSaved
             )

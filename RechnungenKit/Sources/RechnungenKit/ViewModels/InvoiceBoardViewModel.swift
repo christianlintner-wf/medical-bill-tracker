@@ -25,6 +25,7 @@ public final class InvoiceBoardViewModel {
         guard invoice.status != newStatus else { return }
         var updated = invoice
         updated.status = newStatus
+        updated.hasPendingSync = true
         invoicesByStatus[invoice.status]?.removeAll { $0.id == invoice.id }
         invoicesByStatus[newStatus, default: []].append(updated)
         do {

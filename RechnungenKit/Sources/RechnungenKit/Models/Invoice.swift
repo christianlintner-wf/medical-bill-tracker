@@ -12,6 +12,7 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
     public var status: InvoiceStatus
     public var localPDFFileName: String?
     public var remoteFileURL: String?
+    public var hasPendingSync: Bool
 
     public init(
         id: UUID = UUID(),
@@ -24,7 +25,8 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
         providerName: String? = nil,
         status: InvoiceStatus = .open,
         localPDFFileName: String? = nil,
-        remoteFileURL: String? = nil
+        remoteFileURL: String? = nil,
+        hasPendingSync: Bool = false
     ) {
         self.id = id
         self.remoteRowID = remoteRowID
@@ -37,5 +39,6 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
         self.status = status
         self.localPDFFileName = localPDFFileName
         self.remoteFileURL = remoteFileURL
+        self.hasPendingSync = hasPendingSync
     }
 }

@@ -62,13 +62,13 @@ public actor LocalStore {
     }
 
     public func allInvoices() throws -> [Invoice] {
-        try modelContext.fetch(FetchDescriptor<InvoiceEntity>()).map(makeInvoice(from:))
+        try modelContext.fetch(FetchDescriptor<InvoiceEntity>()).map { try makeInvoice(from: $0) }
     }
 
     public func invoice(byLocalID id: UUID) throws -> Invoice? {
         let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == id })
         guard let entity = try modelContext.fetch(descriptor).first else { return nil }
-        return makeInvoice(from: entity)
+        return try makeInvoice(from: entity)
     }
 
     public func upsertInvoiceByRemoteID(row: SeaTableRow) throws {
@@ -77,7 +77,8 @@ public actor LocalStore {
         let amount = row.fields["Betrag"].numberValue ?? 0
         let patientRaw = row.fields["Patient"].stringValue ?? Patient.christian.rawValue
         let statusRaw = row.fields["Status"].stringValue ?? InvoiceStatus.open.rawValue
-        let providerRemoteRowID = row.fields["Arzt"].stringArrayValue?.first
+        let providerLinkIDs = row.fields["Arzt"].stringArrayValue ?? []
+        let providerRemoteRowID = providerLinkIDs.first
 
         var providerLocalID: UUID?
         if let providerRemoteRowID {
@@ -90,7 +91,9 @@ public actor LocalStore {
             existing.invoiceNumber = invoiceNumber
             existing.amount = Decimal(amount)
             existing.patientRawValue = patientRaw
-            existing.statusRawValue = statusRaw
+            if try !hasPendingOutboxEntry(targetLocalID: existing.id, operation: .updateInvoiceStatus) {
+                existing.statusRawValue = statusRaw
+            }
             existing.providerID = providerLocalID
             existing.providerRemoteRowID = providerRemoteRowID
         } else {
@@ -135,6 +138,19 @@ public actor LocalStore {
 
     public func pendingOutboxEntries() throws -> [OutboxEntryEntity] {
         try modelContext.fetch(FetchDescriptor<OutboxEntryEntity>(sortBy: [SortDescriptor(\.createdAt)]))
+    }
+
+    public func hasPendingOutboxEntry(targetLocalID: UUID, operation: OutboxOperation) throws -> Bool {
+        let opRaw = operation.rawValue
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(
+            predicate: #Predicate { $0.targetLocalID == targetLocalID && $0.operationRawValue == opRaw }
+        )
+        return try !modelContext.fetch(descriptor).isEmpty
+    }
+
+    public func hasAnyPendingOutboxEntry(targetLocalID: UUID) throws -> Bool {
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.targetLocalID == targetLocalID })
+        return try !modelContext.fetch(descriptor).isEmpty
     }
 
     public func removeOutboxEntry(id: UUID) throws {
@@ -182,8 +198,15 @@ public actor LocalStore {
         entity.remoteFileURL = invoice.remoteFileURL
     }
 
-    private func makeInvoice(from entity: InvoiceEntity) -> Invoice {
-        Invoice(
+    private func makeInvoice(from entity: InvoiceEntity) throws -> Invoice {
+        var resolvedProviderName = entity.providerName
+        if resolvedProviderName == nil, let providerID = entity.providerID {
+            let providerDescriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.id == providerID })
+            resolvedProviderName = try modelContext.fetch(providerDescriptor).first?.name
+        }
+        let entityID = entity.id
+        let hasPending = try entity.remoteRowID == nil || hasAnyPendingOutboxEntry(targetLocalID: entityID)
+        return Invoice(
             id: entity.id,
             remoteRowID: entity.remoteRowID,
             invoiceNumber: entity.invoiceNumber,
@@ -191,10 +214,11 @@ public actor LocalStore {
             patient: Patient(rawValue: entity.patientRawValue) ?? .christian,
             providerID: entity.providerID,
             providerRemoteRowID: entity.providerRemoteRowID,
-            providerName: entity.providerName,
+            providerName: resolvedProviderName,
             status: InvoiceStatus(rawValue: entity.statusRawValue) ?? .open,
             localPDFFileName: entity.localPDFFileName,
-            remoteFileURL: entity.remoteFileURL
+            remoteFileURL: entity.remoteFileURL,
+            hasPendingSync: hasPending
         )
     }
 }

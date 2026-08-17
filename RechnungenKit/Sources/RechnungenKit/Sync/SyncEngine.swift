@@ -22,6 +22,11 @@ public actor SyncEngine {
         }
     }
 
+    public func lastOutboxError() async -> String? {
+        guard let entries = try? await localStore.pendingOutboxEntries() else { return nil }
+        return entries.compactMap(\.lastErrorDescription).first
+    }
+
     private func process(entry: OutboxEntryEntity) async {
         do {
             switch OutboxOperation(rawValue: entry.operationRawValue) {

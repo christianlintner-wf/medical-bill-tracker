@@ -16,7 +16,7 @@ struct InvoiceCardView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.accentColor.opacity(0.2)))
-            if invoice.remoteRowID == nil {
+            if invoice.hasPendingSync {
                 Label("Wartet auf Sync", systemImage: "arrow.triangle.2.circlepath")
                     .font(.caption2)
                     .foregroundStyle(.orange)
