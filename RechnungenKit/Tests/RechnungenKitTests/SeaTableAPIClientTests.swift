@@ -117,6 +117,7 @@ final class SeaTableAPIClientTests: XCTestCase {
     }
 
     func test_uploadFile_returnsUploadedFileDescriptor() async throws {
+        var capturedUploadBody: Data?
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
                 let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
@@ -127,6 +128,7 @@ final class SeaTableAPIClientTests: XCTestCase {
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             if request.url!.absoluteString.contains("upload-api") {
+                capturedUploadBody = request.httpBodyStreamData()
                 let json = #"[{"name":"invoice.pdf","size":1234}]"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
@@ -138,6 +140,13 @@ final class SeaTableAPIClientTests: XCTestCase {
         XCTAssertEqual(uploaded.name, "invoice.pdf")
         XCTAssertEqual(uploaded.size, 1234)
         XCTAssertEqual(uploaded.url, "/asset/uuid-1/files/invoice.pdf")
+
+        let bodyString = String(data: try XCTUnwrap(capturedUploadBody), encoding: .utf8)
+        XCTAssertNotNil(bodyString)
+        XCTAssertTrue(bodyString!.contains("name=\"parent_dir\""))
+        XCTAssertTrue(bodyString!.contains("/asset/uuid-1/files"))
+        XCTAssertTrue(bodyString!.contains("name=\"file\"; filename=\"invoice.pdf\""))
+        XCTAssertTrue(bodyString!.contains("pdf-bytes"))
     }
 
     func test_arztTable_createAndListUseArztnameField() async throws {
