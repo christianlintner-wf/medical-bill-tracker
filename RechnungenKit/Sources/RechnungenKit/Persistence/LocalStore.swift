@@ -1,0 +1,200 @@
+import SwiftData
+import Foundation
+
+@ModelActor
+public actor LocalStore {
+    public func upsertProvider(_ provider: Provider) throws {
+        let targetID = provider.id
+        let descriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.id == targetID })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.remoteRowID = provider.remoteRowID
+            existing.name = provider.name
+        } else {
+            modelContext.insert(ProviderEntity(id: provider.id, remoteRowID: provider.remoteRowID, name: provider.name))
+        }
+        try modelContext.save()
+    }
+
+    public func allProviders() throws -> [Provider] {
+        try modelContext.fetch(FetchDescriptor<ProviderEntity>()).map {
+            Provider(id: $0.id, remoteRowID: $0.remoteRowID, name: $0.name)
+        }
+    }
+
+    public func provider(byLocalID id: UUID) throws -> Provider? {
+        let descriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return nil }
+        return Provider(id: entity.id, remoteRowID: entity.remoteRowID, name: entity.name)
+    }
+
+    public func upsertProviderByRemoteID(remoteRowID: String, name: String) throws {
+        let descriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.remoteRowID == remoteRowID })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.name = name
+        } else {
+            modelContext.insert(ProviderEntity(remoteRowID: remoteRowID, name: name))
+        }
+        try modelContext.save()
+    }
+
+    public func setProviderRemoteRowID(localID: UUID, remoteRowID: String) throws {
+        let descriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.id == localID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.remoteRowID = remoteRowID
+        try modelContext.save()
+
+        let invoiceDescriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.providerID == localID })
+        for invoice in try modelContext.fetch(invoiceDescriptor) {
+            invoice.providerRemoteRowID = remoteRowID
+        }
+        try modelContext.save()
+    }
+
+    public func upsertInvoice(_ invoice: Invoice) throws {
+        let targetID = invoice.id
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == targetID })
+        if let existing = try modelContext.fetch(descriptor).first {
+            apply(invoice, to: existing)
+        } else {
+            modelContext.insert(makeEntity(from: invoice))
+        }
+        try modelContext.save()
+    }
+
+    public func allInvoices() throws -> [Invoice] {
+        try modelContext.fetch(FetchDescriptor<InvoiceEntity>()).map(makeInvoice(from:))
+    }
+
+    public func invoice(byLocalID id: UUID) throws -> Invoice? {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return nil }
+        return makeInvoice(from: entity)
+    }
+
+    public func upsertInvoiceByRemoteID(row: SeaTableRow) throws {
+        let remoteID = row.id
+        let invoiceNumber = row.fields["Rechnungsnummer"].stringValue ?? ""
+        let amount = row.fields["Betrag"].numberValue ?? 0
+        let patientRaw = row.fields["Patient"].stringValue ?? Patient.christian.rawValue
+        let statusRaw = row.fields["Status"].stringValue ?? InvoiceStatus.open.rawValue
+        let providerRemoteRowID = row.fields["Arzt"].stringArrayValue?.first
+
+        var providerLocalID: UUID?
+        if let providerRemoteRowID {
+            let providerDescriptor = FetchDescriptor<ProviderEntity>(predicate: #Predicate { $0.remoteRowID == providerRemoteRowID })
+            providerLocalID = try modelContext.fetch(providerDescriptor).first?.id
+        }
+
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.remoteRowID == remoteID })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.invoiceNumber = invoiceNumber
+            existing.amount = Decimal(amount)
+            existing.patientRawValue = patientRaw
+            existing.statusRawValue = statusRaw
+            existing.providerID = providerLocalID
+            existing.providerRemoteRowID = providerRemoteRowID
+        } else {
+            modelContext.insert(InvoiceEntity(
+                remoteRowID: remoteID,
+                invoiceNumber: invoiceNumber,
+                amount: Decimal(amount),
+                patientRawValue: patientRaw,
+                providerID: providerLocalID,
+                providerRemoteRowID: providerRemoteRowID,
+                statusRawValue: statusRaw
+            ))
+        }
+        try modelContext.save()
+    }
+
+    public func updateInvoiceStatus(id: UUID, status: InvoiceStatus) throws {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.statusRawValue = status.rawValue
+        try modelContext.save()
+    }
+
+    public func setInvoiceRemoteRowID(localID: UUID, remoteRowID: String) throws {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == localID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.remoteRowID = remoteRowID
+        try modelContext.save()
+    }
+
+    public func setInvoiceRemoteFileURL(localID: UUID, url: String) throws {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == localID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.remoteFileURL = url
+        try modelContext.save()
+    }
+
+    public func enqueueOutboxEntry(operation: OutboxOperation, targetLocalID: UUID) throws {
+        modelContext.insert(OutboxEntryEntity(operationRawValue: operation.rawValue, targetLocalID: targetLocalID))
+        try modelContext.save()
+    }
+
+    public func pendingOutboxEntries() throws -> [OutboxEntryEntity] {
+        try modelContext.fetch(FetchDescriptor<OutboxEntryEntity>(sortBy: [SortDescriptor(\.createdAt)]))
+    }
+
+    public func removeOutboxEntry(id: UUID) throws {
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        modelContext.delete(entity)
+        try modelContext.save()
+    }
+
+    public func recordOutboxFailure(id: UUID, error: String) throws {
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.attemptCount += 1
+        entity.lastAttemptAt = Date()
+        entity.lastErrorDescription = error
+        try modelContext.save()
+    }
+
+    private func makeEntity(from invoice: Invoice) -> InvoiceEntity {
+        InvoiceEntity(
+            id: invoice.id,
+            remoteRowID: invoice.remoteRowID,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: invoice.amount,
+            patientRawValue: invoice.patient.rawValue,
+            providerID: invoice.providerID,
+            providerRemoteRowID: invoice.providerRemoteRowID,
+            providerName: invoice.providerName,
+            statusRawValue: invoice.status.rawValue,
+            localPDFFileName: invoice.localPDFFileName,
+            remoteFileURL: invoice.remoteFileURL
+        )
+    }
+
+    private func apply(_ invoice: Invoice, to entity: InvoiceEntity) {
+        entity.remoteRowID = invoice.remoteRowID
+        entity.invoiceNumber = invoice.invoiceNumber
+        entity.amount = invoice.amount
+        entity.patientRawValue = invoice.patient.rawValue
+        entity.providerID = invoice.providerID
+        entity.providerRemoteRowID = invoice.providerRemoteRowID
+        entity.providerName = invoice.providerName
+        entity.statusRawValue = invoice.status.rawValue
+        entity.localPDFFileName = invoice.localPDFFileName
+        entity.remoteFileURL = invoice.remoteFileURL
+    }
+
+    private func makeInvoice(from entity: InvoiceEntity) -> Invoice {
+        Invoice(
+            id: entity.id,
+            remoteRowID: entity.remoteRowID,
+            invoiceNumber: entity.invoiceNumber,
+            amount: entity.amount,
+            patient: Patient(rawValue: entity.patientRawValue) ?? .christian,
+            providerID: entity.providerID,
+            providerRemoteRowID: entity.providerRemoteRowID,
+            providerName: entity.providerName,
+            status: InvoiceStatus(rawValue: entity.statusRawValue) ?? .open,
+            localPDFFileName: entity.localPDFFileName,
+            remoteFileURL: entity.remoteFileURL
+        )
+    }
+}
