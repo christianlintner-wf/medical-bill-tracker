@@ -21,7 +21,15 @@ public final class ScanViewModel {
 
     public func applyExtractedFields(_ fields: ExtractedInvoiceFields) {
         if let invoiceNumber = fields.invoiceNumber { self.invoiceNumber = invoiceNumber }
-        if let amount = fields.amount { self.amountText = NSDecimalNumber(decimal: amount).stringValue }
+        if let amount = fields.amount {
+            let formatter = NumberFormatter()
+            formatter.locale = Locale(identifier: "de_DE")
+            formatter.numberStyle = .decimal
+            formatter.minimumFractionDigits = 2
+            formatter.maximumFractionDigits = 2
+            formatter.usesGroupingSeparator = false
+            self.amountText = formatter.string(from: amount as NSDecimalNumber) ?? ""
+        }
     }
 
     public func save(pdfData: Data) async {

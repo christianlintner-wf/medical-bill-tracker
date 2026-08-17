@@ -30,7 +30,7 @@ final class ScanViewModelTests: XCTestCase {
         viewModel.applyExtractedFields(ExtractedInvoiceFields(invoiceNumber: "2025-72", amount: 150, date: nil))
 
         XCTAssertEqual(viewModel.invoiceNumber, "2025-72")
-        XCTAssertEqual(viewModel.amountText, "150")
+        XCTAssertEqual(viewModel.amountText, "150,00")
     }
 
     func test_scanViewModel_save_createsInvoiceAndSetsDidSave() async {
@@ -61,5 +61,18 @@ final class ScanViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.errorMessage)
         let stored = await repository.storedInvoices
         XCTAssertTrue(stored.isEmpty)
+    }
+
+    func test_scanViewModel_ocrPrefillThenSave_roundTripsFractionalAmountCorrectly() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+
+        viewModel.applyExtractedFields(ExtractedInvoiceFields(invoiceNumber: "2025-72", amount: Decimal(string: "19.99"), date: nil))
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertTrue(viewModel.didSave)
+        let stored = await repository.storedInvoices
+        XCTAssertEqual(stored.first?.amount, Decimal(string: "19.99"))
     }
 }
