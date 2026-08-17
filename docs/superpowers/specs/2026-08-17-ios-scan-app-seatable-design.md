@@ -120,8 +120,8 @@ Von der App gelesene/geschriebene Felder: Rechnungsnummer, Arztrechnung (Datei),
 - **UI Tests (XCUITest):** Scan-Formular-Validierung, Drag&Drop-Statuswechsel auf dem Board, Arzt-Neuanlage-Flow
 - **Manuelles Testen:** echter Kamera-Scan auf Gerät (Simulator hat keine Kamera)
 
-## Offene Punkte für spätere Phasen
+## Entscheidungen zu späteren Phasen
 
-- Wann/ob auf ein eigenes Spring-Backend migriert wird (Repository-Interface hält diese Option offen)
-- Ob/wann ein Web-Frontend entsteht
-- Ob Android relevant wird (würde die native-Swift-Entscheidung neu bewerten)
+- **Spring-Backend-Migration:** nicht kurzfristig geplant, sicher nicht im nächsten Jahr. Das Repository-Interface hält die Option offen, ist aber kein aktiver Fahrplanpunkt.
+- **Web-Frontend:** ebenfalls nicht kurzfristig geplant.
+- **Android:** nicht benötigt — die native-Swift/SwiftUI-Entscheidung bleibt damit endgültig, keine Cross-Platform-Neubewertung nötig.
