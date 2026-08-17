@@ -23,6 +23,7 @@ final class CompositionRoot {
         }
 
         let apiClient = SeaTableAPIClient(configuration: .init(apiToken: token))
+        Self.ensureApplicationSupportDirectoryExists()
         let container = try! ModelContainer(for: ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self)
         let localStore = LocalStore(modelContainer: container)
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -30,5 +31,12 @@ final class CompositionRoot {
         let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
         let syncEngine = SyncEngine(apiClient: apiClient, localStore: localStore, fileStorage: fileStorage)
         services = Services(repository: repository, syncEngine: syncEngine)
+    }
+
+    private static func ensureApplicationSupportDirectoryExists() {
+        guard let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return
+        }
+        try? FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
     }
 }
