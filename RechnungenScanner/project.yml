@@ -1,0 +1,25 @@
+name: RechnungenScanner
+options:
+  bundleIdPrefix: com.medicalbilltracker
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  RechnungenKit:
+    path: ../RechnungenKit
+targets:
+  RechnungenScanner:
+    type: application
+    platform: iOS
+    sources:
+      - RechnungenScanner
+    dependencies:
+      - package: RechnungenKit
+    info:
+      path: RechnungenScanner/Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSCameraUsageDescription: "Wird benötigt, um Arztrechnungen zu scannen."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.medicalbilltracker.rechnungenscanner
+        SWIFT_VERSION: "5.9"
