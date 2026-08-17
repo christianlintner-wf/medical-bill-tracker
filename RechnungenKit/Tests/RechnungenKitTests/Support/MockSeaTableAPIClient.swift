@@ -35,4 +35,12 @@ extension MockSeaTableAPIClient {
     func setRows(table: String, rows: [SeaTableRow]) {
         rowsByTable[table] = rows
     }
+
+    func setNextCreatedRowID(_ id: String) {
+        nextCreatedRowID = id
+    }
+
+    func setErrorToThrow(_ error: Error?) {
+        errorToThrow = error
+    }
 }
