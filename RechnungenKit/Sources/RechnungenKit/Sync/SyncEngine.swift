@@ -17,7 +17,7 @@ public actor SyncEngine {
 
     public func processOutbox() async {
         guard let entries = try? await localStore.pendingOutboxEntries() else { return }
-        for entry in entries.reversed() {
+        for entry in entries {
             await process(entry: entry)
         }
     }

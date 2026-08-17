@@ -1,0 +1,8 @@
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/LocalFileStorageTests.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/LocalStoreTests.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/ModelsTests.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/SeaTableAPIClientTests.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/SeaTableInvoiceRepositoryTests.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/Support/MockSeaTableAPIClient.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/Support/URLProtocolStub.swift
+/Users/christianlintner/Github/medical-bill-tracker/RechnungenKit/Tests/RechnungenKitTests/SyncEngineTests.swift

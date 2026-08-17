@@ -16,7 +16,8 @@ final class SyncEngineTests: XCTestCase {
 
     func test_processOutbox_createsProviderThenInvoiceThenUploadsFile() async throws {
         let apiClient = MockSeaTableAPIClient()
-        await apiClient.setNextCreatedRowID("remote-provider-1")
+        await apiClient.setNextCreatedRowID("remote-provider-1", forTable: "Arzt")
+        await apiClient.setNextCreatedRowID("remote-invoice-1", forTable: "Arztrechnungen")
         let localStore = try makeLocalStore()
         let fileStorage = makeFileStorage()
         try fileStorage.save(Data("pdf-bytes".utf8), fileName: "scan.pdf")
@@ -34,7 +35,6 @@ final class SyncEngineTests: XCTestCase {
 
         let engine = SyncEngine(apiClient: apiClient, localStore: localStore, fileStorage: fileStorage)
         await engine.processOutbox()
-        await apiClient.setNextCreatedRowID("remote-invoice-1")
         await engine.processOutbox()
         await engine.processOutbox()
 

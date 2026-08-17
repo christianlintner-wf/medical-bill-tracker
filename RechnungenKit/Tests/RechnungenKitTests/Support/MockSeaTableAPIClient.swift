@@ -6,6 +6,7 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     var createdRows: [(table: String, fields: [String: SeaTableValue])] = []
     var updatedRows: [(table: String, rowID: String, fields: [String: SeaTableValue])] = []
     var nextCreatedRowID = "generated-id"
+    var nextCreatedRowIDByTable: [String: String] = [:]
     var uploadResult = SeaTableUploadedFile(name: "file.pdf", size: 1, url: "/asset/file.pdf")
     var errorToThrow: Error?
 
@@ -17,7 +18,7 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     func createRow(table: String, fields: [String: SeaTableValue]) async throws -> String {
         if let errorToThrow { throw errorToThrow }
         createdRows.append((table, fields))
-        return nextCreatedRowID
+        return nextCreatedRowIDByTable[table] ?? nextCreatedRowID
     }
 
     func updateRow(table: String, rowID: String, fields: [String: SeaTableValue]) async throws {
@@ -38,6 +39,10 @@ extension MockSeaTableAPIClient {
 
     func setNextCreatedRowID(_ id: String) {
         nextCreatedRowID = id
+    }
+
+    func setNextCreatedRowID(_ id: String, forTable table: String) {
+        nextCreatedRowIDByTable[table] = id
     }
 
     func setErrorToThrow(_ error: Error?) {
