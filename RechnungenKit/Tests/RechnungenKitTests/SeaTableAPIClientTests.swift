@@ -34,7 +34,7 @@ final class SeaTableAPIClientTests: XCTestCase {
                 let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
-            if request.url!.path.contains("/rows/") {
+            if request.url!.absoluteString.contains("/rows") {
                 let json = #"{"rows":[{"_id":"row-1","Rechnungsnummer":"2025-72","Betrag":150.0,"Arzt":["provider-1"]}]}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
@@ -56,7 +56,7 @@ final class SeaTableAPIClientTests: XCTestCase {
                 let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
-            if request.url!.path.contains("/rows/") && request.httpMethod == "POST" {
+            if request.url!.absoluteString.contains("/rows") && request.httpMethod == "POST" {
                 let json = #"{"_id":"row-2"}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
@@ -119,6 +119,18 @@ final class SeaTableAPIClientTests: XCTestCase {
 
 private extension URLRequest {
     func httpBodyStreamData() -> Data? {
-        httpBody
+        if let httpBody { return httpBody }
+        guard let stream = httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 4096
+        var buffer = [UInt8](repeating: 0, count: bufferSize)
+        while stream.hasBytesAvailable {
+            let read = stream.read(&buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data
     }
 }
