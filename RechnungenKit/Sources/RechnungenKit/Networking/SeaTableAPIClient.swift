@@ -127,6 +127,47 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
     }
 
     public func uploadFile(data: Data, fileName: String) async throws -> SeaTableUploadedFile {
-        fatalError("implemented in Task 3")
+        let token = try await baseAccessToken()
+
+        var linkRequest = URLRequest(url: configuration.serverBaseURL.appendingPathComponent("api/v2.1/dtable/app-upload-link/"))
+        linkRequest.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        let (linkData, linkResponse) = try await session.data(for: linkRequest)
+        try Self.validate(response: linkResponse, data: linkData)
+        guard
+            let linkJSON = try JSONSerialization.jsonObject(with: linkData) as? [String: Any],
+            let uploadLinkString = linkJSON["upload_link"] as? String,
+            let parentPath = linkJSON["parent_path"] as? String,
+            let uploadLink = URL(string: uploadLinkString)
+        else {
+            throw SeaTableAPIError.invalidResponse
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var uploadRequest = URLRequest(url: uploadLink)
+        uploadRequest.httpMethod = "POST"
+        uploadRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"parent_dir\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(parentPath)\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        uploadRequest.httpBody = body
+
+        let (uploadData, uploadResponse) = try await session.data(for: uploadRequest)
+        try Self.validate(response: uploadResponse, data: uploadData)
+        guard
+            let uploadJSON = try JSONSerialization.jsonObject(with: uploadData) as? [[String: Any]],
+            let uploaded = uploadJSON.first,
+            let relativeName = uploaded["name"] as? String,
+            let size = uploaded["size"] as? Int
+        else {
+            throw SeaTableAPIError.invalidResponse
+        }
+        return SeaTableUploadedFile(name: relativeName, size: size, url: "\(parentPath)/\(relativeName)")
     }
 }
