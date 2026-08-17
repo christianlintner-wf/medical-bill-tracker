@@ -2780,7 +2780,7 @@ struct RechnungenScannerApp: App {
 - [ ] **Step 6: Generate and build the project**
 
 Run: `cd RechnungenScanner && xcodegen generate`
-Run: `xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 7: Commit**
@@ -2870,7 +2870,7 @@ extension ScanService: VNDocumentCameraViewControllerDelegate {
 
 - [ ] **Step 2: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -2940,7 +2940,7 @@ struct SettingsView: View {
 
 - [ ] **Step 2: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 3: Commit**
@@ -3051,7 +3051,7 @@ struct InvoiceFormView: View {
 
 - [ ] **Step 3: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -3176,7 +3176,7 @@ struct InvoiceBoardView: View {
 
 - [ ] **Step 3: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -3291,7 +3291,7 @@ struct ProviderPickerView: View {
 
 - [ ] **Step 3: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
@@ -3471,7 +3471,7 @@ enum PDFFirstPageRenderer {
 
 - [ ] **Step 3: Build to verify it compiles**
 
-Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 15' build`
+Run: `cd RechnungenScanner && xcodegen generate && xcodebuild -project RechnungenScanner.xcodeproj -scheme RechnungenScanner -destination 'platform=iOS Simulator,name=iPhone 17' build`
 Expected: `** BUILD SUCCEEDED **`
 
 - [ ] **Step 4: Commit**
