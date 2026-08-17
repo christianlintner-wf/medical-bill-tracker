@@ -1,0 +1,10 @@
+import Foundation
+
+public protocol InvoiceRepositoryProtocol: Sendable {
+    func refresh() async throws
+    func invoices() async throws -> [Invoice]
+    func providers() async throws -> [Provider]
+    func createProvider(name: String) async throws -> Provider
+    func createInvoice(_ invoice: Invoice) async throws
+    func updateStatus(invoiceID: UUID, newStatus: InvoiceStatus) async throws
+}
