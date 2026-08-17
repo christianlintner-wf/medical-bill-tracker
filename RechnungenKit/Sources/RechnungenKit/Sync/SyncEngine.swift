@@ -104,7 +104,7 @@ public actor SyncEngine {
         try await apiClient.updateRow(
             table: "Arztrechnungen",
             rowID: remoteRowID,
-            fields: ["Arztrechnung": .stringArray([uploaded.url])]
+            fields: ["Arztrechnung": .fileArray([SeaTableFileValue(name: uploaded.name, size: uploaded.size, url: uploaded.url)])]
         )
         try await localStore.setInvoiceRemoteFileURL(localID: localID, url: uploaded.url)
     }

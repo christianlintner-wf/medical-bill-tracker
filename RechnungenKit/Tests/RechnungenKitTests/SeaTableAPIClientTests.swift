@@ -18,24 +18,33 @@ final class SeaTableAPIClientTests: XCTestCase {
         SeaTableAPIClient(configuration: .init(apiToken: "test-token"), session: session)
     }
 
-    private func stubAccessToken() {
-        URLProtocolStub.handler = { request in
-            if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
-            }
-            return .init(statusCode: 404, data: Data())
-        }
+    private static let accessTokenJSON = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
+
+    /// `listRows` resolves internal column keys (and select-option ids) via the metadata
+    /// endpoint before it can decode a row response - every listRows-exercising test needs
+    /// this stubbed too, with column keys matching whatever the row JSON uses.
+    private static func metadataJSON(table: String, columns: String) -> String {
+        #"{"metadata":{"tables":[{"name":"\#(table)","columns":[\#(columns)]}]}}"#
     }
 
     func test_listRows_returnsDecodedRows() async throws {
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.url!.path.contains("metadata") {
+                let columns = #"""
+                {"key":"8TrB","name":"Rechnungsnummer"},
+                {"key":"9Tgq","name":"Betrag"},
+                {"key":"5szi","name":"Arzt"}
+                """#
+                return .init(statusCode: 200, data: Data(Self.metadataJSON(table: "Arztrechnungen", columns: columns).utf8))
             }
             if request.url!.absoluteString.contains("/rows") {
-                let json = #"{"rows":[{"_id":"row-1","Rechnungsnummer":"2025-72","Betrag":150.0,"Arzt":["provider-1"]}]}"#
+                // Row data is keyed by internal column key, not display name. Link-column
+                // values come back as [{"display_value": ..., "row_id": ...}], not a bare
+                // array of strings - exercise both real shapes here.
+                let json = #"{"rows":[{"_id":"row-1","8TrB":"2025-72","9Tgq":150.0,"5szi":[{"display_value":"Dr. Mona Cooper","row_id":"provider-1"}]}]}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             return .init(statusCode: 404, data: Data())
@@ -50,14 +59,61 @@ final class SeaTableAPIClientTests: XCTestCase {
         XCTAssertEqual(rows[0].fields["Arzt"], .stringArray(["provider-1"]))
     }
 
-    func test_createRow_returnsNewRowID() async throws {
+    func test_listRows_resolvesSingleSelectOptionIDsToDisplayText() async throws {
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.url!.path.contains("metadata") {
+                let columns = #"""
+                {"key":"NL1F","name":"Status","data":{"options":[{"id":"950504","name":"Erledigt"},{"id":"850886","name":"Offen"}]}},
+                {"key":"bxQU","name":"Patient","data":{"options":[{"id":"309073","name":"Christian"}]}}
+                """#
+                return .init(statusCode: 200, data: Data(Self.metadataJSON(table: "Arztrechnungen", columns: columns).utf8))
+            }
+            if request.url!.absoluteString.contains("/rows") {
+                let json = #"{"rows":[{"_id":"row-1","NL1F":"950504","bxQU":"309073"}]}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
+            return .init(statusCode: 404, data: Data())
+        }
+
+        let rows = try await makeClient().listRows(table: "Arztrechnungen")
+
+        XCTAssertEqual(rows[0].fields["Status"], .string("Erledigt"))
+        XCTAssertEqual(rows[0].fields["Patient"], .string("Christian"))
+    }
+
+    func test_listRows_usesV2RowsEndpoint() async throws {
+        var requestedPath: String?
+        URLProtocolStub.handler = { request in
+            if request.url!.path.contains("app-access-token") {
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.url!.path.contains("metadata") {
+                return .init(statusCode: 200, data: Data(Self.metadataJSON(table: "Arztrechnungen", columns: "").utf8))
+            }
+            requestedPath = request.url!.path
+            return .init(statusCode: 200, data: Data(#"{"rows":[]}"#.utf8))
+        }
+
+        _ = try await makeClient().listRows(table: "Arztrechnungen")
+
+        // URL.path strips the trailing slash even though the wire request keeps it (see absoluteString elsewhere).
+        XCTAssertEqual(requestedPath, "/api/v2/dtables/uuid-1/rows")
+    }
+
+    func test_createRow_returnsNewRowID() async throws {
+        var capturedBody: [String: Any]?
+        URLProtocolStub.handler = { request in
+            if request.url!.path.contains("app-access-token") {
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
             if request.url!.absoluteString.contains("/rows") && request.httpMethod == "POST" {
-                let json = #"{"_id":"row-2"}"#
+                if let bodyData = request.httpBodyStreamData() {
+                    capturedBody = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any]
+                }
+                let json = #"{"inserted_row_count":1,"row_ids":[{"_id":"row-2"}],"first_row":{"_id":"row-2"}}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             return .init(statusCode: 404, data: Data())
@@ -69,14 +125,16 @@ final class SeaTableAPIClientTests: XCTestCase {
         )
 
         XCTAssertEqual(rowID, "row-2")
+        let sentRows = capturedBody?["rows"] as? [[String: Any]]
+        XCTAssertEqual(sentRows?.count, 1)
+        XCTAssertEqual(sentRows?.first?["Rechnungsnummer"] as? String, "2025-90")
     }
 
     func test_updateRow_sendsPUTWithRowIDAndFields() async throws {
         var capturedBody: [String: Any]?
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
             }
             if request.httpMethod == "PUT" {
                 if let bodyData = request.httpBodyStreamData() {
@@ -93,14 +151,17 @@ final class SeaTableAPIClientTests: XCTestCase {
             fields: ["Status": .string("Erledigt")]
         )
 
-        XCTAssertEqual(capturedBody?["row_id"] as? String, "row-1")
+        let updates = capturedBody?["updates"] as? [[String: Any]]
+        XCTAssertEqual(updates?.count, 1)
+        XCTAssertEqual(updates?.first?["row_id"] as? String, "row-1")
+        let updatedRow = updates?.first?["row"] as? [String: Any]
+        XCTAssertEqual(updatedRow?["Status"] as? String, "Erledigt")
     }
 
     func test_serverError_throwsSeaTableAPIError() async throws {
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
             }
             return .init(statusCode: 500, data: Data("boom".utf8))
         }
@@ -120,16 +181,15 @@ final class SeaTableAPIClientTests: XCTestCase {
         var capturedUploadBody: Data?
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
             }
             if request.url!.path.contains("app-upload-link") {
-                let json = #"{"upload_link":"https://upload.seatable.io/upload-api/abc","parent_path":"/asset/uuid-1/files"}"#
+                let json = #"{"upload_link":"https://upload.seatable.io/upload-api/abc","parent_path":"/asset/uuid-1","file_relative_path":"files/2026-08","workspace_id":42}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             if request.url!.absoluteString.contains("upload-api") {
                 capturedUploadBody = request.httpBodyStreamData()
-                let json = #"[{"name":"invoice.pdf","size":1234}]"#
+                let json = #"[{"name":"invoice.pdf","id":"abc123","size":1234}]"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             return .init(statusCode: 404, data: Data())
@@ -139,12 +199,14 @@ final class SeaTableAPIClientTests: XCTestCase {
 
         XCTAssertEqual(uploaded.name, "invoice.pdf")
         XCTAssertEqual(uploaded.size, 1234)
-        XCTAssertEqual(uploaded.url, "/asset/uuid-1/files/invoice.pdf")
+        XCTAssertEqual(uploaded.url, "/workspace/42/asset/uuid-1/files/2026-08/invoice.pdf")
 
         let bodyString = String(data: try XCTUnwrap(capturedUploadBody), encoding: .utf8)
         XCTAssertNotNil(bodyString)
         XCTAssertTrue(bodyString!.contains("name=\"parent_dir\""))
-        XCTAssertTrue(bodyString!.contains("/asset/uuid-1/files"))
+        XCTAssertTrue(bodyString!.contains("/asset/uuid-1"))
+        XCTAssertTrue(bodyString!.contains("name=\"relative_path\""))
+        XCTAssertTrue(bodyString!.contains("files/2026-08"))
         XCTAssertTrue(bodyString!.contains("name=\"file\"; filename=\"invoice.pdf\""))
         XCTAssertTrue(bodyString!.contains("pdf-bytes"))
     }
@@ -152,14 +214,17 @@ final class SeaTableAPIClientTests: XCTestCase {
     func test_arztTable_createAndListUseArztnameField() async throws {
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {
-                let json = #"{"access_token":"abc","dtable_uuid":"uuid-1","dtable_server":"https://cloud.seatable.io/"}"#
-                return .init(statusCode: 200, data: Data(json.utf8))
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.url!.path.contains("metadata") {
+                let columns = #"{"key":"HC7m","name":"Arztname"}"#
+                return .init(statusCode: 200, data: Data(Self.metadataJSON(table: "Arzt", columns: columns).utf8))
             }
             if request.httpMethod == "POST" {
-                return .init(statusCode: 200, data: Data(#"{"_id":"provider-1"}"#.utf8))
+                return .init(statusCode: 200, data: Data(#"{"row_ids":[{"_id":"provider-1"}]}"#.utf8))
             }
             if request.url!.absoluteString.contains("/rows") {
-                let json = #"{"rows":[{"_id":"provider-1","Arztname":"Dr. Mona Cooper"}]}"#
+                let json = #"{"rows":[{"_id":"provider-1","HC7m":"Dr. Mona Cooper"}]}"#
                 return .init(statusCode: 200, data: Data(json.utf8))
             }
             return .init(statusCode: 404, data: Data())

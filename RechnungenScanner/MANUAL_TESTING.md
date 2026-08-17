@@ -3,9 +3,9 @@
 Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 
 ## Einrichtung
-- [ ] App-Start ohne gespeichertes Token zeigt die Einstellungen-Ansicht
-- [ ] Ein SeaTable-Base-API-Token für die Base "Arztrechnungen" eintragen und speichern
-- [ ] Nach dem Speichern erscheint das Rechnungs-Board
+- [x] App-Start ohne gespeichertes Token zeigt die Einstellungen-Ansicht
+- [x] Ein SeaTable-Base-API-Token für die Base "Arztrechnungen" eintragen und speichern
+- [x] Nach dem Speichern erscheint das Rechnungs-Board
 
 ## Scan-Flow
 - [ ] "+" öffnet die Kamera (VisionKit-Scanner)
