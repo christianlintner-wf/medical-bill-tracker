@@ -306,4 +306,26 @@ final class LocalStoreTests: XCTestCase {
         let invoices = try await store.allInvoices()
         XCTAssertEqual(SeaTableDateFormatter.string(from: invoices[0].date!), "2026-08-17")
     }
+
+    func test_finding_forInvoiceID_findsTheFindingLinkedToThatInvoice() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        let finding = Finding(invoiceID: invoice.id, localPDFFileName: "befund.pdf")
+        try await store.upsertFinding(finding)
+
+        let found = try await store.finding(forInvoiceID: invoice.id)
+
+        XCTAssertEqual(found?.id, finding.id)
+    }
+
+    func test_finding_forInvoiceID_returnsNilWhenNoneExists() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+
+        let found = try await store.finding(forInvoiceID: invoice.id)
+
+        XCTAssertNil(found)
+    }
 }

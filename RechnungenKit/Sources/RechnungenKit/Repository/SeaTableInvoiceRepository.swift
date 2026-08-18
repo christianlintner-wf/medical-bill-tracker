@@ -60,4 +60,8 @@ public actor SeaTableInvoiceRepository: InvoiceRepositoryProtocol {
             try await localStore.enqueueOutboxEntry(operation: .uploadFindingFile, targetLocalID: finding.id)
         }
     }
+
+    public func finding(forInvoiceID invoiceID: UUID) async throws -> Finding? {
+        try await localStore.finding(forInvoiceID: invoiceID)
+    }
 }

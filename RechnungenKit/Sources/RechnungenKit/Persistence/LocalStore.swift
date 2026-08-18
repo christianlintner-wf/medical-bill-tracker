@@ -239,6 +239,19 @@ public actor LocalStore {
         )
     }
 
+    public func finding(forInvoiceID invoiceID: UUID) throws -> Finding? {
+        let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.invoiceID == invoiceID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return nil }
+        return Finding(
+            id: entity.id,
+            remoteRowID: entity.remoteRowID,
+            invoiceID: entity.invoiceID,
+            invoiceRemoteRowID: entity.invoiceRemoteRowID,
+            localPDFFileName: entity.localPDFFileName,
+            remoteFileURL: entity.remoteFileURL
+        )
+    }
+
     public func setFindingRemoteRowID(localID: UUID, remoteRowID: String) throws {
         let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.id == localID })
         guard let entity = try modelContext.fetch(descriptor).first else { return }

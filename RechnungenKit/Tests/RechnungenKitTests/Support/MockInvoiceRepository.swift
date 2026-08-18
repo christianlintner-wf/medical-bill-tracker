@@ -46,6 +46,11 @@ actor MockInvoiceRepository: InvoiceRepositoryProtocol {
         if let errorToThrow { throw errorToThrow }
         storedFindings.append(finding)
     }
+
+    func finding(forInvoiceID invoiceID: UUID) async throws -> Finding? {
+        if let errorToThrow { throw errorToThrow }
+        return storedFindings.first { $0.invoiceID == invoiceID }
+    }
 }
 
 extension MockInvoiceRepository {
@@ -55,6 +60,10 @@ extension MockInvoiceRepository {
 
     func setInvoices(_ invoices: [Invoice]) {
         storedInvoices = invoices
+    }
+
+    func setFindings(_ findings: [Finding]) {
+        storedFindings = findings
     }
 
     func setError(_ error: Error?) {
