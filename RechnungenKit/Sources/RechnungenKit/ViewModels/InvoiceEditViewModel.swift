@@ -36,10 +36,14 @@ public final class InvoiceEditViewModel {
     }
 
     public func updateDate(_ newDate: Date) async {
+        print("[DEBUG] updateDate called: invoiceID=\(invoice.id) newDate=\(newDate)")
         invoice.date = newDate
+        print("[DEBUG] updateDate after local assignment: invoice.date=\(String(describing: invoice.date))")
         do {
             try await repository.updateDate(invoiceID: invoice.id, newDate: newDate)
+            print("[DEBUG] updateDate repository call succeeded")
         } catch {
+            print("[DEBUG] updateDate repository call THREW: \(error)")
             errorMessage = String(describing: error)
         }
     }
@@ -49,12 +53,18 @@ public final class InvoiceEditViewModel {
     }
 
     public func exportForSubmission() {
-        guard let target = submissionTarget else { return }
+        print("[DEBUG] exportForSubmission called: invoiceID=\(invoice.id) invoice.date=\(String(describing: invoice.date)) status=\(invoice.status.rawValue) submissionTarget=\(String(describing: submissionTarget))")
+        guard let target = submissionTarget else {
+            print("[DEBUG] exportForSubmission: submissionTarget is nil, returning early without touching errorMessage")
+            return
+        }
         do {
-            _ = try exportService.export(invoice: invoice, finding: finding, target: target)
+            let destination = try exportService.export(invoice: invoice, finding: finding, target: target)
+            print("[DEBUG] exportForSubmission SUCCEEDED, wrote to \(destination)")
             exportMessage = "Dateien für \(target.displayName) vorbereitet."
             errorMessage = nil
         } catch {
+            print("[DEBUG] exportForSubmission THREW: \(error)")
             errorMessage = Self.describeExportError(error)
             exportMessage = nil
         }
