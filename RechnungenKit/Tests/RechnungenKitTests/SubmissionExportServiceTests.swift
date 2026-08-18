@@ -37,7 +37,7 @@ final class SubmissionExportServiceTests: XCTestCase {
 
         let destination = try service.export(invoice: invoice, finding: nil, target: .oegk)
 
-        XCTAssertEqual(destination, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK"))
+        XCTAssertEqual(destination.standardizedFileURL, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK").standardizedFileURL)
         let expectedFile = destination.appendingPathComponent("2026-08-17_Christian_DrSchmidt_120-50EUR_Rechnung.pdf")
         XCTAssertEqual(try Data(contentsOf: expectedFile), Data("pdf-bytes".utf8))
     }
@@ -83,7 +83,7 @@ final class SubmissionExportServiceTests: XCTestCase {
 
         let destination = try service.destinationFolder(for: invoice, target: .oegk)
 
-        XCTAssertEqual(destination, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK"))
+        XCTAssertEqual(destination.standardizedFileURL, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK").standardizedFileURL)
         var isDirectory: ObjCBool = false
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path, isDirectory: &isDirectory))
         XCTAssertTrue(isDirectory.boolValue)

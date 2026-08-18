@@ -16,11 +16,10 @@ public struct SubmissionExportService: Sendable {
 
     public func destinationFolder(for invoice: Invoice, target: InsuranceTarget) throws -> URL {
         guard let date = invoice.date else { throw ExportError.missingDate }
-        return try bookmarkStore.withAccess { rawFolderURL in
-            let folderURL = Self.canonicalizeURL(rawFolderURL)
+        return try bookmarkStore.withAccess { folderURL in
             let destination = Self.destinationFolder(root: folderURL, date: date, target: target)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-            return destination.appendingPathComponent("")
+            return destination
         }
     }
 
@@ -32,15 +31,14 @@ public struct SubmissionExportService: Sendable {
         let findingData: Data? = try finding?.localPDFFileName.map { try fileStorage.read(fileName: $0) }
         let baseName = Self.baseFileName(invoice: invoice, date: date)
 
-        return try bookmarkStore.withAccess { rawFolderURL in
-            let folderURL = Self.canonicalizeURL(rawFolderURL)
+        return try bookmarkStore.withAccess { folderURL in
             let destination = Self.destinationFolder(root: folderURL, date: date, target: target)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
             try invoiceData.write(to: destination.appendingPathComponent("\(baseName)_Rechnung.pdf"))
             if let findingData {
                 try findingData.write(to: destination.appendingPathComponent("\(baseName)_Befund.pdf"))
             }
-            return destination.appendingPathComponent("")
+            return destination
         }
     }
 
@@ -78,16 +76,5 @@ public struct SubmissionExportService: Sendable {
 
     private static func sanitize(_ raw: String) -> String {
         raw.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
-    }
-
-    private static func canonicalizeURL(_ url: URL) -> URL {
-        // On macOS, /var is a symlink to /private/var. When URLs are resolved from bookmarks,
-        // they use the canonical /private/var representation. We normalize back to /var
-        // for consistency with how URLs are constructed in tests and user-facing code.
-        var path = url.path
-        if path.hasPrefix("/private/var/") {
-            path = "/var/" + String(path.dropFirst(13))
-        }
-        return URL(fileURLWithPath: path, isDirectory: true)
     }
 }
