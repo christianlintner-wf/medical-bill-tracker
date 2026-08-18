@@ -256,6 +256,7 @@ public actor LocalStore {
             remoteRowID: invoice.remoteRowID,
             invoiceNumber: invoice.invoiceNumber,
             amount: invoice.amount,
+            date: invoice.date,
             patientRawValue: invoice.patient.rawValue,
             providerID: invoice.providerID,
             providerRemoteRowID: invoice.providerRemoteRowID,
@@ -270,6 +271,7 @@ public actor LocalStore {
         entity.remoteRowID = invoice.remoteRowID
         entity.invoiceNumber = invoice.invoiceNumber
         entity.amount = invoice.amount
+        entity.date = invoice.date
         entity.patientRawValue = invoice.patient.rawValue
         entity.providerID = invoice.providerID
         entity.providerRemoteRowID = invoice.providerRemoteRowID
@@ -292,6 +294,7 @@ public actor LocalStore {
             remoteRowID: entity.remoteRowID,
             invoiceNumber: entity.invoiceNumber,
             amount: entity.amount,
+            date: entity.date,
             patient: Patient(rawValue: entity.patientRawValue) ?? .christian,
             providerID: entity.providerID,
             providerRemoteRowID: entity.providerRemoteRowID,

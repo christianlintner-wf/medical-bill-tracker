@@ -279,4 +279,15 @@ final class LocalStoreTests: XCTestCase {
 
         XCTAssertEqual(updated?.remoteFileURL, "/asset/befund.pdf")
     }
+
+    func test_upsertInvoice_thenInvoiceByLocalID_roundTripsDate() async throws {
+        let store = try makeStore()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, date: date, patient: .christian)
+
+        try await store.upsertInvoice(invoice)
+        let stored = try await store.invoice(byLocalID: invoice.id)
+
+        XCTAssertEqual(stored?.date, date)
+    }
 }

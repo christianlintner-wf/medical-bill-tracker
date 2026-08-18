@@ -7,6 +7,7 @@ public final class InvoiceEntity {
     public var remoteRowID: String?
     public var invoiceNumber: String
     public var amount: Decimal
+    public var date: Date?
     public var patientRawValue: String
     public var providerID: UUID?
     public var providerRemoteRowID: String?
@@ -20,6 +21,7 @@ public final class InvoiceEntity {
         remoteRowID: String? = nil,
         invoiceNumber: String,
         amount: Decimal,
+        date: Date? = nil,
         patientRawValue: String,
         providerID: UUID? = nil,
         providerRemoteRowID: String? = nil,
@@ -32,6 +34,7 @@ public final class InvoiceEntity {
         self.remoteRowID = remoteRowID
         self.invoiceNumber = invoiceNumber
         self.amount = amount
+        self.date = date
         self.patientRawValue = patientRawValue
         self.providerID = providerID
         self.providerRemoteRowID = providerRemoteRowID
