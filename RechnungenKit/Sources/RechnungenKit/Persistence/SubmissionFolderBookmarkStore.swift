@@ -30,9 +30,16 @@ public final class SubmissionFolderBookmarkStore: @unchecked Sendable {
         var isStale = false
         let url = try URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale)
         if isStale {
-            throw ResolveError.bookmarkStale
+            refreshBookmark(for: url)
         }
         return url
+    }
+
+    private func refreshBookmark(for url: URL) {
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+        guard let refreshed = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) else { return }
+        userDefaults.set(refreshed, forKey: storageKey)
     }
 
     public func withAccess<T>(_ body: (URL) throws -> T) throws -> T {

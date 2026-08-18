@@ -36,6 +36,8 @@ public actor SyncEngine {
                 try await syncCreateInvoice(localID: entry.targetLocalID)
             case .updateInvoiceStatus:
                 try await syncUpdateStatus(localID: entry.targetLocalID)
+            case .updateInvoiceDate:
+                try await syncUpdateDate(localID: entry.targetLocalID)
             case .uploadInvoiceFile:
                 try await syncUploadFile(localID: entry.targetLocalID)
             case .createFinding:
@@ -97,6 +99,21 @@ public actor SyncEngine {
             table: "Arztrechnungen",
             rowID: remoteRowID,
             fields: ["Status": .string(invoice.status.rawValue)]
+        )
+    }
+
+    private func syncUpdateDate(localID: UUID) async throws {
+        guard
+            let invoice = try await localStore.invoice(byLocalID: localID),
+            let remoteRowID = invoice.remoteRowID,
+            let date = invoice.date
+        else {
+            throw SyncError.dependencyNotReady
+        }
+        try await apiClient.updateRow(
+            table: "Arztrechnungen",
+            rowID: remoteRowID,
+            fields: ["Datum": .string(SeaTableDateFormatter.string(from: date))]
         )
     }
 

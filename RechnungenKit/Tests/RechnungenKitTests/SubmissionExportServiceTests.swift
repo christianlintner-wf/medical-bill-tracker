@@ -18,9 +18,7 @@ final class SubmissionExportServiceTests: XCTestCase {
         components.year = year
         components.month = month
         components.day = day
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return calendar.date(from: components)!
+        return Calendar.current.date(from: components)!
     }
 
     func test_export_writesInvoiceFileWithStructuredNameIntoYearAndTargetSubfolder() throws {

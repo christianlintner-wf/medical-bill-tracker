@@ -78,6 +78,21 @@ final class InvoiceEditViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
     }
 
+    func test_exportForSubmission_withoutConfiguredFolder_setsNotConfiguredErrorMessage() throws {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: try makeTempDirectory())
+        try fileStorage.save(Data("pdf-bytes".utf8), fileName: "invoice.pdf")
+        let bookmarkStore = SubmissionFolderBookmarkStore(userDefaults: UserDefaults(suiteName: "InvoiceEditViewModelTests-unconfigured-\(UUID().uuidString)")!)
+        let exportService = SubmissionExportService(fileStorage: fileStorage, bookmarkStore: bookmarkStore)
+        var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, localPDFFileName: "invoice.pdf")
+        invoice.date = Date()
+        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+
+        viewModel.exportForSubmission()
+
+        XCTAssertEqual(viewModel.errorMessage, "Bitte zuerst einen Einreichungs-Ordner in den Einstellungen wählen.")
+    }
+
     func test_portalURL_returnsConfiguredLinkForPatientAndTarget() throws {
         let repository = MockInvoiceRepository()
         let exportService = try makeExportService(

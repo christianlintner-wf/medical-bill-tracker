@@ -53,6 +53,11 @@ public actor SeaTableInvoiceRepository: InvoiceRepositoryProtocol {
         try await localStore.enqueueOutboxEntry(operation: .updateInvoiceStatus, targetLocalID: invoiceID)
     }
 
+    public func updateDate(invoiceID: UUID, newDate: Date) async throws {
+        try await localStore.updateInvoiceDate(id: invoiceID, date: newDate)
+        try await localStore.enqueueOutboxEntry(operation: .updateInvoiceDate, targetLocalID: invoiceID)
+    }
+
     public func createFinding(_ finding: Finding) async throws {
         try await localStore.upsertFinding(finding)
         try await localStore.enqueueOutboxEntry(operation: .createFinding, targetLocalID: finding.id)

@@ -120,6 +120,13 @@ public actor LocalStore {
         try modelContext.save()
     }
 
+    public func updateInvoiceDate(id: UUID, date: Date) throws {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.date = date
+        try modelContext.save()
+    }
+
     public func setInvoiceRemoteRowID(localID: UUID, remoteRowID: String) throws {
         let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == localID })
         guard let entity = try modelContext.fetch(descriptor).first else { return }

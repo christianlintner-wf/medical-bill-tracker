@@ -35,6 +35,15 @@ public final class InvoiceEditViewModel {
         }
     }
 
+    public func updateDate(_ newDate: Date) async {
+        invoice.date = newDate
+        do {
+            try await repository.updateDate(invoiceID: invoice.id, newDate: newDate)
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
     public func loadFinding() async {
         finding = try? await repository.finding(forInvoiceID: invoice.id)
     }
@@ -53,8 +62,14 @@ public final class InvoiceEditViewModel {
 
     public func openSubmissionFolder() -> URL? {
         guard let target = submissionTarget else { return nil }
-        guard let destination = try? exportService.destinationFolder(for: invoice, target: target) else { return nil }
-        return FilesAppURLBuilder.url(for: destination)
+        do {
+            let destination = try exportService.destinationFolder(for: invoice, target: target)
+            errorMessage = nil
+            return FilesAppURLBuilder.url(for: destination)
+        } catch {
+            errorMessage = Self.describeExportError(error)
+            return nil
+        }
     }
 
     public func portalURL() -> URL? {

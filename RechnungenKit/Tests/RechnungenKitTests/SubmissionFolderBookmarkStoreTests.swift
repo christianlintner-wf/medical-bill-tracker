@@ -14,6 +14,14 @@ final class SubmissionFolderBookmarkStoreTests: XCTestCase {
         }
     }
 
+    func test_resolvedFolderURL_withCorruptBookmarkData_throws() {
+        let userDefaults = makeUserDefaults()
+        userDefaults.set(Data("not-a-real-bookmark".utf8), forKey: "submissionFolderBookmark")
+        let store = SubmissionFolderBookmarkStore(userDefaults: userDefaults)
+
+        XCTAssertThrowsError(try store.resolvedFolderURL())
+    }
+
     func test_saveThenResolvedFolderURL_roundTripsToSameDirectory() throws {
         let store = SubmissionFolderBookmarkStore(userDefaults: makeUserDefaults())
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -12,11 +12,14 @@ struct InvoiceDetailView: View {
                 LabeledContent("Betrag") {
                     Text(viewModel.invoice.amount, format: .currency(code: "EUR"))
                 }
-                if let date = viewModel.invoice.date {
-                    LabeledContent("Datum") {
-                        Text(date, format: .dateTime.day().month().year())
-                    }
-                }
+                DatePicker(
+                    "Datum",
+                    selection: Binding(
+                        get: { viewModel.invoice.date ?? Date() },
+                        set: { newValue in Task { await viewModel.updateDate(newValue) } }
+                    ),
+                    displayedComponents: .date
+                )
                 if let providerName = viewModel.invoice.providerName {
                     LabeledContent("Arzt", value: providerName)
                 }

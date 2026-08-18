@@ -42,6 +42,18 @@ final class LocalStoreTests: XCTestCase {
         XCTAssertEqual(updated?.status, .submittedToPublicInsurance)
     }
 
+    func test_updateInvoiceDate_updatesStoredInvoice() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        let newDate = Date(timeIntervalSince1970: 1_700_000_000)
+
+        try await store.updateInvoiceDate(id: invoice.id, date: newDate)
+        let updated = try await store.invoice(byLocalID: invoice.id)
+
+        XCTAssertEqual(updated?.date, newDate)
+    }
+
     func test_setInvoiceRemoteRowID_marksInvoiceAsSynced() async throws {
         let store = try makeStore()
         let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)

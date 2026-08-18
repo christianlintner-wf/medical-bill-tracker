@@ -49,7 +49,6 @@ public struct SubmissionExportService: Sendable {
     private static func baseFileName(invoice: Invoice, date: Date) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
         let patient = sanitize(invoice.patient.rawValue)
@@ -58,9 +57,7 @@ public struct SubmissionExportService: Sendable {
     }
 
     private static func yearComponent(for date: Date) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return String(calendar.component(.year, from: date))
+        String(Calendar.current.component(.year, from: date))
     }
 
     private static func amountComponent(_ amount: Decimal) -> String {

@@ -56,11 +56,16 @@ struct SettingsView: View {
             patientLinksDraft = Dictionary(uniqueKeysWithValues: Patient.allCases.map { ($0, patientLinksStore.links(for: $0)) })
         }
         .sheet(isPresented: $isPickingFolder) {
-            FolderPicker { url in
-                try? bookmarkStore.save(folderURL: url)
-                folderName = url.lastPathComponent
-                isPickingFolder = false
-            }
+            FolderPicker(
+                onPicked: { url in
+                    try? bookmarkStore.save(folderURL: url)
+                    folderName = url.lastPathComponent
+                    isPickingFolder = false
+                },
+                onCancelled: {
+                    isPickingFolder = false
+                }
+            )
         }
     }
 
@@ -72,14 +77,24 @@ struct SettingsView: View {
             },
             set: { newValue in
                 var links = patientLinksDraft[patient] ?? PatientLinks()
+                let normalizedURL = Self.normalizedPortalURL(from: newValue)
                 switch target {
-                case .oegk: links.oegkURL = URL(string: newValue)
-                case .merkur: links.merkurURL = URL(string: newValue)
+                case .oegk: links.oegkURL = normalizedURL
+                case .merkur: links.merkurURL = normalizedURL
                 }
                 patientLinksDraft[patient] = links
                 patientLinksStore.setLinks(links, for: patient)
             }
         )
+    }
+
+    private static func normalizedPortalURL(from rawValue: String) -> URL? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.lowercased().hasPrefix("http://") || trimmed.lowercased().hasPrefix("https://") {
+            return URL(string: trimmed)
+        }
+        return URL(string: "https://\(trimmed)")
     }
 
     private func save() {

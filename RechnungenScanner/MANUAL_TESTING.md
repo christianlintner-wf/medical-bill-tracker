@@ -25,6 +25,8 @@ Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 - [x] Speichern mit Befund-Scan legt nach dem Sync in SeaTable eine neue Zeile in der Tabelle "Befunde" an, mit hochgeladenem PDF in der Spalte "Befund" und Link zur zugehörigen Zeile in "Arztrechnungen"
 
 ## Einreichungs-Export
+**Voraussetzung:** Die Tabelle `Arztrechnungen` in der SeaTable-Base braucht eine Spalte `Datum` vom Typ "Datum". Ohne diese Spalte schlägt das Anlegen/Synchronisieren jeder neuen Rechnung dauerhaft fehl (Outbox-Eintrag bleibt für immer hängen), und beim nächsten Pull-Refresh wird ein lokal erfasstes Datum stillschweigend wieder auf "kein Datum" zurückgesetzt.
+
 - [ ] Im Formular für eine neue Rechnung lässt sich das Datum manuell setzen/korrigieren (DatePicker vorbefüllt mit OCR-Wert, falls erkannt)
 - [ ] In den Einstellungen zeigt "Einreichungs-Ordner" zunächst "Nicht konfiguriert"
 - [ ] "Ordner wählen" öffnet den System-Ordnerauswahl-Dialog; nach Auswahl eines Ordners (z. B. eines iCloud-Drive-Unterordners) zeigt die Einstellungen-Ansicht dessen Namen
