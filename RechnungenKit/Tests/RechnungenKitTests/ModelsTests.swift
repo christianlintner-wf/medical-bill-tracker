@@ -32,6 +32,17 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(invoice.providerID)
     }
 
+    func test_invoice_dateDefaultsToNil() {
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        XCTAssertNil(invoice.date)
+    }
+
+    func test_invoice_dateCanBeSetAtInit() {
+        let date = Date(timeIntervalSince1970: 0)
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, date: date, patient: .christian)
+        XCTAssertEqual(invoice.date, date)
+    }
+
     func test_provider_defaultsToNilRemoteRowID() {
         let provider = Provider(name: "Dr. Mona Cooper")
         XCTAssertNil(provider.remoteRowID)

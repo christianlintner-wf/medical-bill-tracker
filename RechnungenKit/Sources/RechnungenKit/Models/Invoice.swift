@@ -5,6 +5,7 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
     public var remoteRowID: String?
     public var invoiceNumber: String
     public var amount: Decimal
+    public var date: Date?
     public var patient: Patient
     public var providerID: UUID?
     public var providerRemoteRowID: String?
@@ -19,6 +20,7 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
         remoteRowID: String? = nil,
         invoiceNumber: String,
         amount: Decimal,
+        date: Date? = nil,
         patient: Patient,
         providerID: UUID? = nil,
         providerRemoteRowID: String? = nil,
@@ -32,6 +34,7 @@ public struct Invoice: Identifiable, Codable, Equatable, Sendable {
         self.remoteRowID = remoteRowID
         self.invoiceNumber = invoiceNumber
         self.amount = amount
+        self.date = date
         self.patient = patient
         self.providerID = providerID
         self.providerRemoteRowID = providerRemoteRowID
