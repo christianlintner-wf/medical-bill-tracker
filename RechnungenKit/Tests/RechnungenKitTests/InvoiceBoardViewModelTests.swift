@@ -46,10 +46,18 @@ final class InvoiceBoardViewModelTests: XCTestCase {
         XCTAssertTrue(updates.isEmpty)
     }
 
-    func test_invoiceEditViewModel_updateStatus_updatesInvoiceAndCallsRepository() async {
+    func test_invoiceEditViewModel_updateStatus_updatesInvoiceAndCallsRepository() async throws {
         let repository = MockInvoiceRepository()
         let invoice = Invoice(invoiceNumber: "A", amount: 10, patient: .christian, status: .open)
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository)
+        let submissionRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: submissionRoot, withIntermediateDirectories: true)
+        let fileStorageDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: fileStorageDirectory, withIntermediateDirectories: true)
+        let bookmarkStore = SubmissionFolderBookmarkStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-\(UUID().uuidString)")!)
+        try bookmarkStore.save(folderURL: submissionRoot)
+        let exportService = SubmissionExportService(fileStorage: LocalFileStorage(directory: fileStorageDirectory), bookmarkStore: bookmarkStore)
+        let patientLinksStore = PatientLinksStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-links-\(UUID().uuidString)")!)
+        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: patientLinksStore)
 
         await viewModel.updateStatus(.done)
 
