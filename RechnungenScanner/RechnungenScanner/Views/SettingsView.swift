@@ -4,15 +4,22 @@ import RechnungenKit
 struct SettingsView: View {
     let keychainService: KeychainServiceProtocol
     let bookmarkStore: SubmissionFolderBookmarkStore
-    let patientLinksStore: PatientLinksStore
+    let providerLinksStore: InsuranceProviderLinksStore
+    let patientInsuranceStore: PatientInsuranceAssignmentStore
     let onSaved: () -> Void
     var syncErrorMessage: String? = nil
 
     @State private var tokenInput: String = ""
     @State private var errorMessage: String?
+    @State private var hasStoredToken = false
     @State private var folderName: String?
     @State private var isPickingFolder = false
-    @State private var patientLinksDraft: [Patient: PatientLinks] = [:]
+    @State private var providerLinksDraft: [InsuranceProvider: String] = [:]
+    @State private var patientProviderDraft: [Patient: InsuranceProvider] = [:]
+
+    private var publicProviders: [InsuranceProvider] {
+        InsuranceProvider.allCases.filter { $0.category == .publicInsurance }
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,6 +30,9 @@ struct SettingsView: View {
                     }
                 }
                 Section("SeaTable API-Token") {
+                    if hasStoredToken {
+                        Text("Token gespeichert").foregroundStyle(.secondary)
+                    }
                     SecureField("Token", text: $tokenInput)
                     if let errorMessage {
                         Text(errorMessage).foregroundStyle(.red)
@@ -35,16 +45,22 @@ struct SettingsView: View {
                         .foregroundStyle(folderName == nil ? .secondary : .primary)
                     Button("Ordner wählen") { isPickingFolder = true }
                 }
-                Section("Patienten-Links") {
-                    ForEach(Patient.allCases, id: \.self) { patient in
+                Section("Versicherungs-Links") {
+                    ForEach(InsuranceProvider.allCases, id: \.self) { provider in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(patient.rawValue).font(.headline)
-                            TextField("ÖGK-Link", text: linkBinding(for: patient, target: .oegk))
+                            Text("\(provider.displayName) (\(categoryLabel(provider.category)))").font(.headline)
+                            TextField("Link", text: providerLinkBinding(for: provider))
                                 .keyboardType(.URL)
                                 .textInputAutocapitalization(.never)
-                            TextField("Merkur-Link", text: linkBinding(for: patient, target: .merkur))
-                                .keyboardType(.URL)
-                                .textInputAutocapitalization(.never)
+                        }
+                    }
+                }
+                Section("Patienten") {
+                    ForEach(Patient.allCases, id: \.self) { patient in
+                        Picker(patient.rawValue, selection: patientProviderBinding(for: patient)) {
+                            ForEach(publicProviders, id: \.self) { provider in
+                                Text(provider.displayName).tag(provider)
+                            }
                         }
                     }
                 }
@@ -52,8 +68,14 @@ struct SettingsView: View {
             .navigationTitle("Einstellungen")
         }
         .onAppear {
+            hasStoredToken = ((try? keychainService.readAPIToken()) ?? nil) != nil
             folderName = (try? bookmarkStore.resolvedFolderURL())?.lastPathComponent
-            patientLinksDraft = Dictionary(uniqueKeysWithValues: Patient.allCases.map { ($0, patientLinksStore.links(for: $0)) })
+            providerLinksDraft = Dictionary(uniqueKeysWithValues: InsuranceProvider.allCases.map {
+                ($0, providerLinksStore.url(for: $0)?.absoluteString ?? "")
+            })
+            patientProviderDraft = Dictionary(uniqueKeysWithValues: Patient.allCases.map {
+                ($0, patientInsuranceStore.publicProvider(for: $0))
+            })
         }
         .sheet(isPresented: $isPickingFolder) {
             FolderPicker(
@@ -69,21 +91,29 @@ struct SettingsView: View {
         }
     }
 
-    private func linkBinding(for patient: Patient, target: InsuranceTarget) -> Binding<String> {
+    private func categoryLabel(_ category: InsuranceCategory) -> String {
+        switch category {
+        case .publicInsurance: return "Gesundheitskasse"
+        case .privateInsurance: return "Privatversicherung"
+        }
+    }
+
+    private func providerLinkBinding(for provider: InsuranceProvider) -> Binding<String> {
         Binding(
-            get: {
-                let links = patientLinksDraft[patient] ?? PatientLinks()
-                return links.url(for: target)?.absoluteString ?? ""
-            },
+            get: { providerLinksDraft[provider] ?? "" },
             set: { newValue in
-                var links = patientLinksDraft[patient] ?? PatientLinks()
-                let normalizedURL = Self.normalizedPortalURL(from: newValue)
-                switch target {
-                case .oegk: links.oegkURL = normalizedURL
-                case .merkur: links.merkurURL = normalizedURL
-                }
-                patientLinksDraft[patient] = links
-                patientLinksStore.setLinks(links, for: patient)
+                providerLinksDraft[provider] = newValue
+                providerLinksStore.setURL(Self.normalizedPortalURL(from: newValue), for: provider)
+            }
+        )
+    }
+
+    private func patientProviderBinding(for patient: Patient) -> Binding<InsuranceProvider> {
+        Binding(
+            get: { patientProviderDraft[patient] ?? patientInsuranceStore.publicProvider(for: patient) },
+            set: { newValue in
+                patientProviderDraft[patient] = newValue
+                patientInsuranceStore.setPublicProvider(newValue, for: patient)
             }
         )
     }
@@ -100,6 +130,7 @@ struct SettingsView: View {
     private func save() {
         do {
             try keychainService.saveAPIToken(tokenInput)
+            hasStoredToken = true
             onSaved()
         } catch {
             errorMessage = "Token konnte nicht gespeichert werden."

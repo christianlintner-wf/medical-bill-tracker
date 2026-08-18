@@ -8,8 +8,12 @@ final class InvoiceEditViewModelTests: XCTestCase {
         return SubmissionExportService(fileStorage: fileStorage, bookmarkStore: bookmarkStore)
     }
 
-    private func makePatientLinksStore() -> PatientLinksStore {
-        PatientLinksStore(userDefaults: UserDefaults(suiteName: "InvoiceEditViewModelTests-links-\(UUID().uuidString)")!)
+    private func makeProviderLinksStore() -> InsuranceProviderLinksStore {
+        InsuranceProviderLinksStore(userDefaults: UserDefaults(suiteName: "InvoiceEditViewModelTests-links-\(UUID().uuidString)")!)
+    }
+
+    private func makePatientInsuranceStore() -> PatientInsuranceAssignmentStore {
+        PatientInsuranceAssignmentStore(userDefaults: UserDefaults(suiteName: "InvoiceEditViewModelTests-patients-\(UUID().uuidString)")!)
     }
 
     private func makeTempDirectory() throws -> URL {
@@ -18,14 +22,38 @@ final class InvoiceEditViewModelTests: XCTestCase {
         return url
     }
 
-    func test_submissionTarget_reflectsInvoiceStatus() throws {
+    func test_submissionTarget_forPublicPhase_resolvesToPatientsAssignedPublicProvider() throws {
+        let repository = MockInvoiceRepository()
+        let exportService = try makeExportService(
+            submissionRoot: try makeTempDirectory(),
+            fileStorage: LocalFileStorage(directory: try makeTempDirectory())
+        )
+        let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .kathi, status: .open)
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
+
+        XCTAssertEqual(viewModel.submissionTarget, .bva)
+    }
+
+    func test_submissionTarget_forPrivatePhase_isAlwaysMerkurRegardlessOfPatient() throws {
         let repository = MockInvoiceRepository()
         let exportService = try makeExportService(
             submissionRoot: try makeTempDirectory(),
             fileStorage: LocalFileStorage(directory: try makeTempDirectory())
         )
         let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, status: .publicInsuranceCompleted)
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         XCTAssertEqual(viewModel.submissionTarget, .merkur)
     }
@@ -40,7 +68,13 @@ final class InvoiceEditViewModelTests: XCTestCase {
             submissionRoot: try makeTempDirectory(),
             fileStorage: LocalFileStorage(directory: try makeTempDirectory())
         )
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         await viewModel.loadFinding()
 
@@ -54,7 +88,13 @@ final class InvoiceEditViewModelTests: XCTestCase {
             fileStorage: LocalFileStorage(directory: try makeTempDirectory())
         )
         let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, localPDFFileName: "invoice.pdf")
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         viewModel.exportForSubmission()
 
@@ -70,7 +110,13 @@ final class InvoiceEditViewModelTests: XCTestCase {
         let exportService = try makeExportService(submissionRoot: try makeTempDirectory(), fileStorage: fileStorage)
         var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, localPDFFileName: "invoice.pdf")
         invoice.date = Date()
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         viewModel.exportForSubmission()
 
@@ -86,23 +132,35 @@ final class InvoiceEditViewModelTests: XCTestCase {
         let exportService = SubmissionExportService(fileStorage: fileStorage, bookmarkStore: bookmarkStore)
         var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, localPDFFileName: "invoice.pdf")
         invoice.date = Date()
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         viewModel.exportForSubmission()
 
         XCTAssertEqual(viewModel.errorMessage, "Bitte zuerst einen Einreichungs-Ordner in den Einstellungen wählen.")
     }
 
-    func test_portalURL_returnsConfiguredLinkForPatientAndTarget() throws {
+    func test_portalURL_returnsConfiguredLinkForResolvedProvider() throws {
         let repository = MockInvoiceRepository()
         let exportService = try makeExportService(
             submissionRoot: try makeTempDirectory(),
             fileStorage: LocalFileStorage(directory: try makeTempDirectory())
         )
-        let patientLinksStore = makePatientLinksStore()
-        patientLinksStore.setLinks(PatientLinks(oegkURL: URL(string: "https://gesundheitskasse.at")), for: .christian)
+        let providerLinksStore = makeProviderLinksStore()
+        providerLinksStore.setURL(URL(string: "https://gesundheitskasse.at"), for: .oegk)
         let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, status: .open)
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: patientLinksStore)
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: providerLinksStore,
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         XCTAssertEqual(viewModel.portalURL()?.absoluteString, "https://gesundheitskasse.at")
     }
@@ -113,7 +171,13 @@ final class InvoiceEditViewModelTests: XCTestCase {
         let exportService = try makeExportService(submissionRoot: submissionRoot, fileStorage: LocalFileStorage(directory: try makeTempDirectory()))
         var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, status: .open)
         invoice.date = Date()
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: makePatientLinksStore())
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
 
         let url = viewModel.openSubmissionFolder()
 

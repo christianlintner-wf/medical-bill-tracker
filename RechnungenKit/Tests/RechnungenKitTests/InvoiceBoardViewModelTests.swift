@@ -56,8 +56,15 @@ final class InvoiceBoardViewModelTests: XCTestCase {
         let bookmarkStore = SubmissionFolderBookmarkStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-\(UUID().uuidString)")!)
         try bookmarkStore.save(folderURL: submissionRoot)
         let exportService = SubmissionExportService(fileStorage: LocalFileStorage(directory: fileStorageDirectory), bookmarkStore: bookmarkStore)
-        let patientLinksStore = PatientLinksStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-links-\(UUID().uuidString)")!)
-        let viewModel = InvoiceEditViewModel(invoice: invoice, repository: repository, exportService: exportService, patientLinksStore: patientLinksStore)
+        let providerLinksStore = InsuranceProviderLinksStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-links-\(UUID().uuidString)")!)
+        let patientInsuranceStore = PatientInsuranceAssignmentStore(userDefaults: UserDefaults(suiteName: "InvoiceBoardViewModelTests-patients-\(UUID().uuidString)")!)
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: providerLinksStore,
+            patientInsuranceStore: patientInsuranceStore
+        )
 
         await viewModel.updateStatus(.done)
 

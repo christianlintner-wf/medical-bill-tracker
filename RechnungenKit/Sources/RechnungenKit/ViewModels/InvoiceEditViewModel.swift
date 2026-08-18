@@ -10,21 +10,30 @@ public final class InvoiceEditViewModel {
 
     private let repository: InvoiceRepositoryProtocol
     private let exportService: SubmissionExportService
-    private let patientLinksStore: PatientLinksStore
+    private let providerLinksStore: InsuranceProviderLinksStore
+    private let patientInsuranceStore: PatientInsuranceAssignmentStore
 
     public init(
         invoice: Invoice,
         repository: InvoiceRepositoryProtocol,
         exportService: SubmissionExportService,
-        patientLinksStore: PatientLinksStore
+        providerLinksStore: InsuranceProviderLinksStore,
+        patientInsuranceStore: PatientInsuranceAssignmentStore
     ) {
         self.invoice = invoice
         self.repository = repository
         self.exportService = exportService
-        self.patientLinksStore = patientLinksStore
+        self.providerLinksStore = providerLinksStore
+        self.patientInsuranceStore = patientInsuranceStore
     }
 
-    public var submissionTarget: InsuranceTarget? { invoice.status.submissionTarget }
+    public var submissionTarget: InsuranceProvider? {
+        switch invoice.status.submissionPhase {
+        case .publicInsurance: return patientInsuranceStore.publicProvider(for: invoice.patient)
+        case .privateInsurance: return .merkur
+        case nil: return nil
+        }
+    }
 
     public func updateStatus(_ newStatus: InvoiceStatus) async {
         invoice.status = newStatus
@@ -51,7 +60,7 @@ public final class InvoiceEditViewModel {
     public func exportForSubmission() {
         guard let target = submissionTarget else { return }
         do {
-            _ = try exportService.export(invoice: invoice, finding: finding, target: target)
+            _ = try exportService.export(invoice: invoice, finding: finding)
             exportMessage = "Dateien für \(target.displayName) vorbereitet."
             errorMessage = nil
         } catch {
@@ -61,9 +70,9 @@ public final class InvoiceEditViewModel {
     }
 
     public func openSubmissionFolder() -> URL? {
-        guard let target = submissionTarget else { return nil }
+        guard submissionTarget != nil else { return nil }
         do {
-            let destination = try exportService.destinationFolder(for: invoice, target: target)
+            let destination = try exportService.destinationFolder(for: invoice)
             errorMessage = nil
             return FilesAppURLBuilder.url(for: destination)
         } catch {
@@ -74,7 +83,7 @@ public final class InvoiceEditViewModel {
 
     public func portalURL() -> URL? {
         guard let target = submissionTarget else { return nil }
-        return patientLinksStore.links(for: invoice.patient).url(for: target)
+        return providerLinksStore.url(for: target)
     }
 
     private static func describeExportError(_ error: Error) -> String {

@@ -5,7 +5,8 @@ import RechnungenKit
 struct RechnungenScannerApp: App {
     @State private var root = CompositionRoot()
     private let bookmarkStore = SubmissionFolderBookmarkStore()
-    private let patientLinksStore = PatientLinksStore()
+    private let providerLinksStore = InsuranceProviderLinksStore()
+    private let patientInsuranceStore = PatientInsuranceAssignmentStore()
 
     var body: some Scene {
         WindowGroup {
@@ -14,7 +15,8 @@ struct RechnungenScannerApp: App {
                     repository: services.repository,
                     syncEngine: services.syncEngine,
                     exportService: SubmissionExportService(fileStorage: services.fileStorage, bookmarkStore: bookmarkStore),
-                    patientLinksStore: patientLinksStore,
+                    providerLinksStore: providerLinksStore,
+                    patientInsuranceStore: patientInsuranceStore,
                     bookmarkStore: bookmarkStore,
                     onReload: { root.reload() }
                 )
@@ -23,7 +25,8 @@ struct RechnungenScannerApp: App {
                 SettingsView(
                     keychainService: KeychainService(),
                     bookmarkStore: bookmarkStore,
-                    patientLinksStore: patientLinksStore,
+                    providerLinksStore: providerLinksStore,
+                    patientInsuranceStore: patientInsuranceStore,
                     onSaved: { root.reload() }
                 )
             }
@@ -35,7 +38,8 @@ private struct RootView: View {
     let repository: InvoiceRepositoryProtocol
     let syncEngine: SyncEngine
     let exportService: SubmissionExportService
-    let patientLinksStore: PatientLinksStore
+    let providerLinksStore: InsuranceProviderLinksStore
+    let patientInsuranceStore: PatientInsuranceAssignmentStore
     let bookmarkStore: SubmissionFolderBookmarkStore
     let onReload: () -> Void
 
@@ -62,14 +66,16 @@ private struct RootView: View {
         repository: InvoiceRepositoryProtocol,
         syncEngine: SyncEngine,
         exportService: SubmissionExportService,
-        patientLinksStore: PatientLinksStore,
+        providerLinksStore: InsuranceProviderLinksStore,
+        patientInsuranceStore: PatientInsuranceAssignmentStore,
         bookmarkStore: SubmissionFolderBookmarkStore,
         onReload: @escaping () -> Void
     ) {
         self.repository = repository
         self.syncEngine = syncEngine
         self.exportService = exportService
-        self.patientLinksStore = patientLinksStore
+        self.providerLinksStore = providerLinksStore
+        self.patientInsuranceStore = patientInsuranceStore
         self.bookmarkStore = bookmarkStore
         self.onReload = onReload
         _boardViewModel = State(initialValue: InvoiceBoardViewModel(repository: repository))
@@ -108,7 +114,8 @@ private struct RootView: View {
                         invoice: invoice,
                         repository: repository,
                         exportService: exportService,
-                        patientLinksStore: patientLinksStore
+                        providerLinksStore: providerLinksStore,
+                        patientInsuranceStore: patientInsuranceStore
                     )
                 )
             }
@@ -117,7 +124,8 @@ private struct RootView: View {
             SettingsView(
                 keychainService: KeychainService(),
                 bookmarkStore: bookmarkStore,
-                patientLinksStore: patientLinksStore,
+                providerLinksStore: providerLinksStore,
+                patientInsuranceStore: patientInsuranceStore,
                 onSaved: {
                     isShowingSettings = false
                     onReload()

@@ -21,7 +21,7 @@ final class SubmissionExportServiceTests: XCTestCase {
         return Calendar.current.date(from: components)!
     }
 
-    func test_export_writesInvoiceFileWithStructuredNameIntoYearAndTargetSubfolder() throws {
+    func test_export_writesInvoiceFileIntoYearAndInvoiceSubfolder() throws {
         let (service, fileStorage, submissionRoot) = try makeService()
         try fileStorage.save(Data("pdf-bytes".utf8), fileName: "invoice.pdf")
         var invoice = Invoice(
@@ -33,10 +33,13 @@ final class SubmissionExportServiceTests: XCTestCase {
         )
         invoice.date = makeDate(year: 2026, month: 8, day: 17)
 
-        let destination = try service.export(invoice: invoice, finding: nil, target: .oegk)
+        let destination = try service.export(invoice: invoice, finding: nil)
 
-        XCTAssertEqual(destination.standardizedFileURL, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK").standardizedFileURL)
-        let expectedFile = destination.appendingPathComponent("2026-08-17_Christian_DrSchmidt_120-50EUR_Rechnung.pdf")
+        let expectedFolder = submissionRoot
+            .appendingPathComponent("2026")
+            .appendingPathComponent("2026-08-17_Christian_DrSchmidt_20261")
+        XCTAssertEqual(destination.standardizedFileURL, expectedFolder.standardizedFileURL)
+        let expectedFile = destination.appendingPathComponent("Rechnung.pdf")
         XCTAssertEqual(try Data(contentsOf: expectedFile), Data("pdf-bytes".utf8))
     }
 
@@ -48,9 +51,9 @@ final class SubmissionExportServiceTests: XCTestCase {
         invoice.date = makeDate(year: 2026, month: 1, day: 5)
         let finding = Finding(invoiceID: invoice.id, localPDFFileName: "finding.pdf")
 
-        let destination = try service.export(invoice: invoice, finding: finding, target: .merkur)
+        let destination = try service.export(invoice: invoice, finding: finding)
 
-        let expectedFindingFile = destination.appendingPathComponent("2026-01-05_Melanie_DrHuber_50-00EUR_Befund.pdf")
+        let expectedFindingFile = destination.appendingPathComponent("Befund.pdf")
         XCTAssertEqual(try Data(contentsOf: expectedFindingFile), Data("finding-bytes".utf8))
     }
 
@@ -59,7 +62,7 @@ final class SubmissionExportServiceTests: XCTestCase {
         try fileStorage.save(Data("pdf-bytes".utf8), fileName: "invoice.pdf")
         let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, localPDFFileName: "invoice.pdf")
 
-        XCTAssertThrowsError(try service.export(invoice: invoice, finding: nil, target: .oegk)) { error in
+        XCTAssertThrowsError(try service.export(invoice: invoice, finding: nil)) { error in
             XCTAssertEqual(error as? SubmissionExportService.ExportError, .missingDate)
         }
     }
@@ -69,19 +72,22 @@ final class SubmissionExportServiceTests: XCTestCase {
         var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian)
         invoice.date = makeDate(year: 2026, month: 1, day: 1)
 
-        XCTAssertThrowsError(try service.export(invoice: invoice, finding: nil, target: .oegk)) { error in
+        XCTAssertThrowsError(try service.export(invoice: invoice, finding: nil)) { error in
             XCTAssertEqual(error as? SubmissionExportService.ExportError, .missingInvoiceFile)
         }
     }
 
     func test_destinationFolder_createsFolderEvenBeforeExport() throws {
         let (service, _, submissionRoot) = try makeService()
-        var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian)
+        var invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, providerName: "Dr. Schmidt")
         invoice.date = makeDate(year: 2026, month: 3, day: 1)
 
-        let destination = try service.destinationFolder(for: invoice, target: .oegk)
+        let destination = try service.destinationFolder(for: invoice)
 
-        XCTAssertEqual(destination.standardizedFileURL, submissionRoot.appendingPathComponent("2026").appendingPathComponent("ÖGK").standardizedFileURL)
+        let expectedFolder = submissionRoot
+            .appendingPathComponent("2026")
+            .appendingPathComponent("2026-03-01_Christian_DrSchmidt_20261")
+        XCTAssertEqual(destination.standardizedFileURL, expectedFolder.standardizedFileURL)
         var isDirectory: ObjCBool = false
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path, isDirectory: &isDirectory))
         XCTAssertTrue(isDirectory.boolValue)

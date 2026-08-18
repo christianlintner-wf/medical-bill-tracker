@@ -14,61 +14,50 @@ public struct SubmissionExportService: Sendable {
         case missingInvoiceFile
     }
 
-    public func destinationFolder(for invoice: Invoice, target: InsuranceTarget) throws -> URL {
+    public func destinationFolder(for invoice: Invoice) throws -> URL {
         guard let date = invoice.date else { throw ExportError.missingDate }
         return try bookmarkStore.withAccess { folderURL in
-            let destination = Self.destinationFolder(root: folderURL, date: date, target: target)
+            let destination = Self.destinationFolder(root: folderURL, invoice: invoice, date: date)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
             return destination
         }
     }
 
     @discardableResult
-    public func export(invoice: Invoice, finding: Finding?, target: InsuranceTarget) throws -> URL {
+    public func export(invoice: Invoice, finding: Finding?) throws -> URL {
         guard let date = invoice.date else { throw ExportError.missingDate }
         guard let invoiceFileName = invoice.localPDFFileName else { throw ExportError.missingInvoiceFile }
         let invoiceData = try fileStorage.read(fileName: invoiceFileName)
         let findingData: Data? = try finding?.localPDFFileName.map { try fileStorage.read(fileName: $0) }
-        let baseName = Self.baseFileName(invoice: invoice, date: date)
 
         return try bookmarkStore.withAccess { folderURL in
-            let destination = Self.destinationFolder(root: folderURL, date: date, target: target)
+            let destination = Self.destinationFolder(root: folderURL, invoice: invoice, date: date)
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-            try invoiceData.write(to: destination.appendingPathComponent("\(baseName)_Rechnung.pdf"))
+            try invoiceData.write(to: destination.appendingPathComponent("Rechnung.pdf"))
             if let findingData {
-                try findingData.write(to: destination.appendingPathComponent("\(baseName)_Befund.pdf"))
+                try findingData.write(to: destination.appendingPathComponent("Befund.pdf"))
             }
             return destination
         }
     }
 
-    private static func destinationFolder(root: URL, date: Date, target: InsuranceTarget) -> URL {
-        root.appendingPathComponent(yearComponent(for: date)).appendingPathComponent(target.displayName)
+    private static func destinationFolder(root: URL, invoice: Invoice, date: Date) -> URL {
+        root.appendingPathComponent(yearComponent(for: date)).appendingPathComponent(invoiceFolderName(invoice: invoice, date: date))
     }
 
-    private static func baseFileName(invoice: Invoice, date: Date) -> String {
+    private static func invoiceFolderName(invoice: Invoice, date: Date) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
         let patient = sanitize(invoice.patient.rawValue)
         let provider = sanitize(invoice.providerName ?? "Arzt")
-        return "\(dateString)_\(patient)_\(provider)_\(amountComponent(invoice.amount))EUR"
+        let invoiceID = sanitize(invoice.invoiceNumber)
+        return "\(dateString)_\(patient)_\(provider)_\(invoiceID)"
     }
 
     private static func yearComponent(for date: Date) -> String {
         String(Calendar.current.component(.year, from: date))
-    }
-
-    private static func amountComponent(_ amount: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "de_DE")
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.usesGroupingSeparator = false
-        let string = formatter.string(from: amount as NSDecimalNumber) ?? "0,00"
-        return string.replacingOccurrences(of: ",", with: "-")
     }
 
     private static func sanitize(_ raw: String) -> String {
