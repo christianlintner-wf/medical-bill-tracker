@@ -4,14 +4,28 @@ import RechnungenKit
 @main
 struct RechnungenScannerApp: App {
     @State private var root = CompositionRoot()
+    private let bookmarkStore = SubmissionFolderBookmarkStore()
+    private let patientLinksStore = PatientLinksStore()
 
     var body: some Scene {
         WindowGroup {
             if let services = root.services {
-                RootView(repository: services.repository, syncEngine: services.syncEngine, onReload: { root.reload() })
-                    .id(ObjectIdentifier(services.syncEngine))
+                RootView(
+                    repository: services.repository,
+                    syncEngine: services.syncEngine,
+                    exportService: SubmissionExportService(fileStorage: services.fileStorage, bookmarkStore: bookmarkStore),
+                    patientLinksStore: patientLinksStore,
+                    bookmarkStore: bookmarkStore,
+                    onReload: { root.reload() }
+                )
+                .id(ObjectIdentifier(services.syncEngine))
             } else {
-                SettingsView(keychainService: KeychainService(), onSaved: { root.reload() })
+                SettingsView(
+                    keychainService: KeychainService(),
+                    bookmarkStore: bookmarkStore,
+                    patientLinksStore: patientLinksStore,
+                    onSaved: { root.reload() }
+                )
             }
         }
     }
@@ -20,6 +34,9 @@ struct RechnungenScannerApp: App {
 private struct RootView: View {
     let repository: InvoiceRepositoryProtocol
     let syncEngine: SyncEngine
+    let exportService: SubmissionExportService
+    let patientLinksStore: PatientLinksStore
+    let bookmarkStore: SubmissionFolderBookmarkStore
     let onReload: () -> Void
 
     @State private var boardViewModel: InvoiceBoardViewModel
@@ -41,9 +58,19 @@ private struct RootView: View {
         }
     }
 
-    init(repository: InvoiceRepositoryProtocol, syncEngine: SyncEngine, onReload: @escaping () -> Void) {
+    init(
+        repository: InvoiceRepositoryProtocol,
+        syncEngine: SyncEngine,
+        exportService: SubmissionExportService,
+        patientLinksStore: PatientLinksStore,
+        bookmarkStore: SubmissionFolderBookmarkStore,
+        onReload: @escaping () -> Void
+    ) {
         self.repository = repository
         self.syncEngine = syncEngine
+        self.exportService = exportService
+        self.patientLinksStore = patientLinksStore
+        self.bookmarkStore = bookmarkStore
         self.onReload = onReload
         _boardViewModel = State(initialValue: InvoiceBoardViewModel(repository: repository))
     }
@@ -76,12 +103,21 @@ private struct RootView: View {
         }
         .sheet(item: $selectedInvoice) { invoice in
             NavigationStack {
-                InvoiceDetailView(viewModel: InvoiceEditViewModel(invoice: invoice, repository: repository))
+                InvoiceDetailView(
+                    viewModel: InvoiceEditViewModel(
+                        invoice: invoice,
+                        repository: repository,
+                        exportService: exportService,
+                        patientLinksStore: patientLinksStore
+                    )
+                )
             }
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
                 keychainService: KeychainService(),
+                bookmarkStore: bookmarkStore,
+                patientLinksStore: patientLinksStore,
                 onSaved: {
                     isShowingSettings = false
                     onReload()

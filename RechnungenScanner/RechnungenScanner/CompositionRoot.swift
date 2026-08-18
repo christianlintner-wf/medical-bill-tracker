@@ -8,6 +8,7 @@ final class CompositionRoot {
     struct Services {
         let repository: InvoiceRepositoryProtocol
         let syncEngine: SyncEngine
+        let fileStorage: LocalFileStorage
     }
 
     private(set) var services: Services?
@@ -30,7 +31,7 @@ final class CompositionRoot {
         let fileStorage = LocalFileStorage(directory: documentsURL.appendingPathComponent("Scans"))
         let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
         let syncEngine = SyncEngine(apiClient: apiClient, localStore: localStore, fileStorage: fileStorage)
-        services = Services(repository: repository, syncEngine: syncEngine)
+        services = Services(repository: repository, syncEngine: syncEngine, fileStorage: fileStorage)
     }
 
     private static func ensureApplicationSupportDirectoryExists() {
