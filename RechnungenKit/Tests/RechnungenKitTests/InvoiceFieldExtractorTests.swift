@@ -39,4 +39,30 @@ final class InvoiceFieldExtractorTests: XCTestCase {
 
         XCTAssertEqual(result.invoiceNumber, "2025/097")
     }
+
+    /// Reproduces a real invoice where Vision's OCR reads a two-column label/value table
+    /// column-by-column, so "Rechnungsnummer:" and its value land in separate lines with
+    /// other labels in between.
+    func test_extract_findsInvoiceNumberWhenLabelAndValueAreInSeparateOCRLines() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "RECHNUNG",
+            "Rechnungsnummer:",
+            "Rechnungsdatum:",
+            "Zahlungsstatus:",
+            "2026-00282",
+            "13. August 2026",
+            "Bezahlt am 13. August 2026"
+        ])
+
+        XCTAssertEqual(result.invoiceNumber, "2026-00282")
+    }
+
+    func test_extract_splitColumnFallbackIgnoresUnrelatedLabelOnlyLine() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "Rechnungsnummer:",
+            "Ohne passenden Wert in der Nähe"
+        ])
+
+        XCTAssertNil(result.invoiceNumber)
+    }
 }
