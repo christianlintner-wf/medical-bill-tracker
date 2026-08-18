@@ -20,6 +20,9 @@ public actor SeaTableInvoiceRepository: InvoiceRepositoryProtocol {
         for row in invoiceRows {
             try await localStore.upsertInvoiceByRemoteID(row: row)
         }
+
+        try await localStore.pruneInvoices(keepingRemoteRowIDs: Set(invoiceRows.map(\.id)))
+        try await localStore.pruneProviders(keepingRemoteRowIDs: Set(providerRows.map(\.id)))
     }
 
     public func invoices() async throws -> [Invoice] {

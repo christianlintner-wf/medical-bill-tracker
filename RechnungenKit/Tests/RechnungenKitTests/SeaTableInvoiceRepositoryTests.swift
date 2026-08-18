@@ -35,6 +35,74 @@ final class SeaTableInvoiceRepositoryTests: XCTestCase {
         XCTAssertEqual(invoices.first?.providerID, providers.first?.id)
     }
 
+    func test_refresh_removesLocalInvoiceDeletedRemotely() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        await apiClient.setRows(table: "Arzt", rows: [
+            SeaTableRow(id: "provider-1", fields: ["Arztname": .string("Dr. Mona Cooper")])
+        ])
+        await apiClient.setRows(table: "Arztrechnungen", rows: [
+            SeaTableRow(id: "row-1", fields: [
+                "Rechnungsnummer": .string("2025-72"),
+                "Betrag": .number(150.0),
+                "Patient": .string("Christian"),
+                "Status": .string("Offen"),
+                "Arzt": .stringArray(["provider-1"])
+            ]),
+            SeaTableRow(id: "row-2", fields: [
+                "Rechnungsnummer": .string("2025-90"),
+                "Betrag": .number(55.0),
+                "Patient": .string("Melanie"),
+                "Status": .string("Offen"),
+                "Arzt": .stringArray(["provider-1"])
+            ])
+        ])
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: try makeLocalStore())
+        try await repository.refresh()
+
+        await apiClient.setRows(table: "Arztrechnungen", rows: [
+            SeaTableRow(id: "row-1", fields: [
+                "Rechnungsnummer": .string("2025-72"),
+                "Betrag": .number(150.0),
+                "Patient": .string("Christian"),
+                "Status": .string("Offen"),
+                "Arzt": .stringArray(["provider-1"])
+            ])
+        ])
+        try await repository.refresh()
+
+        let invoices = try await repository.invoices()
+        let providers = try await repository.providers()
+        XCTAssertEqual(invoices.map(\.invoiceNumber), ["2025-72"])
+        XCTAssertEqual(providers.map(\.name), ["Dr. Mona Cooper"])
+    }
+
+    func test_refresh_doesNotWipeLocalCacheWhenRemoteReturnsEmptyForPreviouslySyncedTable() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        await apiClient.setRows(table: "Arzt", rows: [
+            SeaTableRow(id: "provider-1", fields: ["Arztname": .string("Dr. Mona Cooper")])
+        ])
+        await apiClient.setRows(table: "Arztrechnungen", rows: [
+            SeaTableRow(id: "row-1", fields: [
+                "Rechnungsnummer": .string("2025-72"),
+                "Betrag": .number(150.0),
+                "Patient": .string("Christian"),
+                "Status": .string("Offen"),
+                "Arzt": .stringArray(["provider-1"])
+            ])
+        ])
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: try makeLocalStore())
+        try await repository.refresh()
+
+        await apiClient.setRows(table: "Arzt", rows: [])
+        await apiClient.setRows(table: "Arztrechnungen", rows: [])
+        try await repository.refresh()
+
+        let invoices = try await repository.invoices()
+        let providers = try await repository.providers()
+        XCTAssertEqual(invoices.map(\.invoiceNumber), ["2025-72"])
+        XCTAssertEqual(providers.map(\.name), ["Dr. Mona Cooper"])
+    }
+
     func test_createInvoice_persistsLocallyAndEnqueuesOutbox() async throws {
         let apiClient = MockSeaTableAPIClient()
         let localStore = try makeLocalStore()

@@ -131,6 +131,101 @@ final class LocalStoreTests: XCTestCase {
         XCTAssertEqual(synced?.hasPendingSync, false)
     }
 
+    func test_pruneInvoices_removesInvoiceMissingFromNonEmptyRemoteSet() async throws {
+        let store = try makeStore()
+        try await store.upsertInvoiceByRemoteID(row: SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"), "Betrag": .number(150.0),
+            "Patient": .string("Christian"), "Status": .string("Offen")
+        ]))
+        try await store.upsertInvoiceByRemoteID(row: SeaTableRow(id: "row-2", fields: [
+            "Rechnungsnummer": .string("2025-90"), "Betrag": .number(55.0),
+            "Patient": .string("Melanie"), "Status": .string("Offen")
+        ]))
+
+        try await store.pruneInvoices(keepingRemoteRowIDs: ["row-1"])
+
+        let remaining = try await store.allInvoices()
+        XCTAssertEqual(remaining.map(\.remoteRowID), ["row-1"])
+    }
+
+    func test_pruneInvoices_keepsLocalOnlyInvoiceWithNoRemoteRowID() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        try await store.upsertInvoice(invoice)
+
+        try await store.pruneInvoices(keepingRemoteRowIDs: [])
+
+        let remaining = try await store.allInvoices()
+        XCTAssertEqual(remaining.map(\.id), [invoice.id])
+    }
+
+    func test_pruneInvoices_removesPendingOutboxEntriesForPrunedInvoice() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        try await store.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+        try await store.enqueueOutboxEntry(operation: .updateInvoiceStatus, targetLocalID: invoice.id)
+
+        try await store.pruneInvoices(keepingRemoteRowIDs: ["some-other-row"])
+
+        let pending = try await store.pendingOutboxEntries()
+        XCTAssertTrue(pending.isEmpty)
+    }
+
+    func test_pruneInvoices_skipsPruningWhenRemoteSetIsEmptyButLocalHasSyncedInvoices() async throws {
+        let store = try makeStore()
+        try await store.upsertInvoiceByRemoteID(row: SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"), "Betrag": .number(150.0),
+            "Patient": .string("Christian"), "Status": .string("Offen")
+        ]))
+
+        try await store.pruneInvoices(keepingRemoteRowIDs: [])
+
+        let remaining = try await store.allInvoices()
+        XCTAssertEqual(remaining.map(\.remoteRowID), ["row-1"])
+    }
+
+    func test_pruneProviders_removesProviderMissingFromNonEmptyRemoteSet() async throws {
+        let store = try makeStore()
+        try await store.upsertProviderByRemoteID(remoteRowID: "provider-1", name: "Dr. Mona Cooper")
+        try await store.upsertProviderByRemoteID(remoteRowID: "provider-2", name: "Dr. John Smith")
+
+        try await store.pruneProviders(keepingRemoteRowIDs: ["provider-1"])
+
+        let remaining = try await store.allProviders()
+        XCTAssertEqual(remaining.map(\.remoteRowID), ["provider-1"])
+    }
+
+    func test_pruneProviders_skipsPruningWhenRemoteSetIsEmptyButLocalHasSyncedProviders() async throws {
+        let store = try makeStore()
+        try await store.upsertProviderByRemoteID(remoteRowID: "provider-1", name: "Dr. Mona Cooper")
+
+        try await store.pruneProviders(keepingRemoteRowIDs: [])
+
+        let remaining = try await store.allProviders()
+        XCTAssertEqual(remaining.map(\.remoteRowID), ["provider-1"])
+    }
+
+    func test_pruneProviders_invoiceReferencingPrunedProviderDegradesGracefully() async throws {
+        let store = try makeStore()
+        try await store.upsertProviderByRemoteID(remoteRowID: "provider-1", name: "Dr. Mona Cooper")
+        try await store.upsertProviderByRemoteID(remoteRowID: "provider-2", name: "Dr. John Smith")
+        let row = SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"), "Betrag": .number(150.0),
+            "Patient": .string("Christian"), "Status": .string("Offen"),
+            "Arzt": .stringArray(["provider-1"])
+        ])
+        try await store.upsertInvoiceByRemoteID(row: row)
+
+        try await store.pruneProviders(keepingRemoteRowIDs: ["provider-2"])
+
+        let providers = try await store.allProviders()
+        XCTAssertEqual(providers.map(\.remoteRowID), ["provider-2"])
+        let invoice = try await store.allInvoices().first
+        XCTAssertEqual(invoice?.invoiceNumber, "2025-72")
+        XCTAssertNil(invoice?.providerName)
+    }
+
     func test_recordOutboxFailure_incrementsAttemptCount() async throws {
         let store = try makeStore()
         let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)

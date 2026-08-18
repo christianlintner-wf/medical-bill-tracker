@@ -160,6 +160,38 @@ public actor LocalStore {
         try modelContext.save()
     }
 
+    public func pruneInvoices(keepingRemoteRowIDs remoteRowIDs: Set<String>) throws {
+        let syncedInvoices = try modelContext.fetch(FetchDescriptor<InvoiceEntity>()).filter { $0.remoteRowID != nil }
+        guard !(remoteRowIDs.isEmpty && !syncedInvoices.isEmpty) else { return }
+
+        let staleInvoices = syncedInvoices.filter { !remoteRowIDs.contains($0.remoteRowID!) }
+        guard !staleInvoices.isEmpty else { return }
+        for invoice in staleInvoices {
+            try deleteOutboxEntries(targetLocalID: invoice.id)
+            modelContext.delete(invoice)
+        }
+        try modelContext.save()
+    }
+
+    public func pruneProviders(keepingRemoteRowIDs remoteRowIDs: Set<String>) throws {
+        let syncedProviders = try modelContext.fetch(FetchDescriptor<ProviderEntity>()).filter { $0.remoteRowID != nil }
+        guard !(remoteRowIDs.isEmpty && !syncedProviders.isEmpty) else { return }
+
+        let staleProviders = syncedProviders.filter { !remoteRowIDs.contains($0.remoteRowID!) }
+        guard !staleProviders.isEmpty else { return }
+        for provider in staleProviders {
+            modelContext.delete(provider)
+        }
+        try modelContext.save()
+    }
+
+    private func deleteOutboxEntries(targetLocalID: UUID) throws {
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.targetLocalID == targetLocalID })
+        for entry in try modelContext.fetch(descriptor) {
+            modelContext.delete(entry)
+        }
+    }
+
     public func recordOutboxFailure(id: UUID, error: String) throws {
         let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.id == id })
         guard let entity = try modelContext.fetch(descriptor).first else { return }
