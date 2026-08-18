@@ -6,6 +6,7 @@ struct InvoiceBoardView: View {
     let onSelectInvoice: (Invoice) -> Void
     let onAddInvoice: () -> Void
     let onShowSettings: () -> Void
+    let onInvoiceMoved: () -> Void
 
     @State private var selectedPatient: Patient?
     @State private var draggingInvoice: Invoice?
@@ -100,7 +101,10 @@ struct InvoiceBoardView: View {
         .background(color(for: status).opacity(0.08))
         .onDrop(of: [.text], isTargeted: nil) { _ in
             guard let invoice = draggingInvoice else { return false }
-            Task { await viewModel.moveInvoice(invoice, to: status) }
+            Task {
+                await viewModel.moveInvoice(invoice, to: status)
+                onInvoiceMoved()
+            }
             draggingInvoice = nil
             return true
         }

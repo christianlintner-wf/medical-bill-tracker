@@ -53,7 +53,8 @@ private struct RootView: View {
             viewModel: boardViewModel,
             onSelectInvoice: { selectedInvoice = $0 },
             onAddInvoice: { scanFlowStep = .scanning },
-            onShowSettings: { isShowingSettings = true }
+            onShowSettings: { isShowingSettings = true },
+            onInvoiceMoved: { Task { await syncAndReload() } }
         )
         .sheet(item: $scanFlowStep) { step in
             switch step {
