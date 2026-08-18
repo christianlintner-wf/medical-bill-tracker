@@ -5,6 +5,7 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     var rowsByTable: [String: [SeaTableRow]] = [:]
     var createdRows: [(table: String, fields: [String: SeaTableValue])] = []
     var updatedRows: [(table: String, rowID: String, fields: [String: SeaTableValue])] = []
+    var addedLinks: [(table: String, column: String, rowID: String, otherRowID: String)] = []
     var nextCreatedRowID = "generated-id"
     var nextCreatedRowIDByTable: [String: String] = [:]
     var uploadResult = SeaTableUploadedFile(name: "file.pdf", size: 1, url: "/asset/file.pdf")
@@ -24,6 +25,11 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     func updateRow(table: String, rowID: String, fields: [String: SeaTableValue]) async throws {
         if let errorToThrow { throw errorToThrow }
         updatedRows.append((table, rowID, fields))
+    }
+
+    func addLink(table: String, column: String, rowID: String, otherRowID: String) async throws {
+        if let errorToThrow { throw errorToThrow }
+        addedLinks.append((table, column, rowID, otherRowID))
     }
 
     func uploadFile(data: Data, fileName: String) async throws -> SeaTableUploadedFile {

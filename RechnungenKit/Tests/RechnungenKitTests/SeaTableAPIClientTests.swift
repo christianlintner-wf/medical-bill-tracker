@@ -158,6 +158,44 @@ final class SeaTableAPIClientTests: XCTestCase {
         XCTAssertEqual(updatedRow?["Status"] as? String, "Erledigt")
     }
 
+    func test_addLink_sendsRequestToLinksEndpointWithResolvedIDs() async throws {
+        var capturedBody: [String: Any]?
+        var capturedPath: String?
+        URLProtocolStub.handler = { request in
+            if request.url!.path.contains("app-access-token") {
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.url!.path.contains("metadata") {
+                let columns = #"""
+                {
+                  "key": "5szi",
+                  "name": "Arzt",
+                  "type": "link",
+                  "data": {"table_id": "Qpy6", "other_table_id": "9WYy", "link_id": "Q5o9"}
+                }
+                """#
+                return .init(statusCode: 200, data: Data(Self.metadataJSON(table: "Arztrechnungen", columns: columns).utf8))
+            }
+            if request.url!.path.contains("links") {
+                capturedPath = request.url!.path
+                if let bodyData = request.httpBodyStreamData() {
+                    capturedBody = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any]
+                }
+                return .init(statusCode: 200, data: Data(#"{"success":true}"#.utf8))
+            }
+            return .init(statusCode: 404, data: Data())
+        }
+
+        try await makeClient().addLink(table: "Arztrechnungen", column: "Arzt", rowID: "invoice-1", otherRowID: "provider-1")
+
+        XCTAssertEqual(capturedPath, "/api/v2/dtables/uuid-1/links")
+        XCTAssertEqual(capturedBody?["link_id"] as? String, "Q5o9")
+        XCTAssertEqual(capturedBody?["table_id"] as? String, "Qpy6")
+        XCTAssertEqual(capturedBody?["other_table_id"] as? String, "9WYy")
+        let map = capturedBody?["other_rows_ids_map"] as? [String: [String]]
+        XCTAssertEqual(map?["invoice-1"], ["provider-1"])
+    }
+
     func test_serverError_throwsSeaTableAPIError() async throws {
         URLProtocolStub.handler = { request in
             if request.url!.path.contains("app-access-token") {

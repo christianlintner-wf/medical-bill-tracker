@@ -46,6 +46,16 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(syncedInvoice?.remoteRowID, "remote-invoice-1")
         XCTAssertNotNil(syncedInvoice?.remoteFileURL)
         XCTAssertTrue(pending.isEmpty)
+
+        let addedLinks = await apiClient.addedLinks
+        XCTAssertEqual(addedLinks.count, 1)
+        XCTAssertEqual(addedLinks.first?.table, "Arztrechnungen")
+        XCTAssertEqual(addedLinks.first?.column, "Arzt")
+        XCTAssertEqual(addedLinks.first?.rowID, "remote-invoice-1")
+        XCTAssertEqual(addedLinks.first?.otherRowID, "remote-provider-1")
+
+        let createdInvoiceFields = await apiClient.createdRows.first { $0.table == "Arztrechnungen" }?.fields
+        XCTAssertNil(createdInvoiceFields?["Arzt"], "Arzt must be set via addLink, not the row create payload - SeaTable silently drops link values written that way")
     }
 
     func test_processOutbox_leavesEntryPendingOnFailureAndRecordsError() async throws {

@@ -64,16 +64,18 @@ public actor SyncEngine {
             }
         }
 
-        var fields: [String: SeaTableValue] = [
+        let fields: [String: SeaTableValue] = [
             "Rechnungsnummer": .string(invoice.invoiceNumber),
             "Betrag": .number((invoice.amount as NSDecimalNumber).doubleValue),
             "Patient": .string(invoice.patient.rawValue),
             "Status": .string(invoice.status.rawValue)
         ]
-        if let providerRemoteRowID {
-            fields["Arzt"] = .stringArray([providerRemoteRowID])
-        }
         let rowID = try await apiClient.createRow(table: "Arztrechnungen", fields: fields)
+        // SeaTable silently drops values written to link columns through createRow/updateRow
+        // (verified against the real API) - the link must be set via the dedicated links endpoint.
+        if let providerRemoteRowID {
+            try await apiClient.addLink(table: "Arztrechnungen", column: "Arzt", rowID: rowID, otherRowID: providerRemoteRowID)
+        }
         try await localStore.setInvoiceRemoteRowID(localID: localID, remoteRowID: rowID)
     }
 

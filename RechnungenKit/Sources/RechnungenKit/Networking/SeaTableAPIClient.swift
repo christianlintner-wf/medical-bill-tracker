@@ -33,6 +33,16 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
         let key: String
         let name: String
         let optionNamesByID: [String: String]
+        let linkMetadata: LinkMetadata?
+    }
+
+    /// Identifies a link column's two tables and its `link_id`, needed to address the
+    /// dedicated links endpoint - SeaTable ignores link-column values written through the
+    /// generic row create/update endpoints, so links must be set via `addLink`.
+    private struct LinkMetadata {
+        let linkID: String
+        let tableID: String
+        let otherTableID: String
     }
 
     private let configuration: Configuration
@@ -74,6 +84,10 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
         URL(string: dtableServer)!.appendingPathComponent("api/v2/dtables/\(dtableUUID)/rows/")
     }
 
+    private func linksURL(dtableServer: String, dtableUUID: String) -> URL {
+        URL(string: dtableServer)!.appendingPathComponent("api/v2/dtables/\(dtableUUID)/links/")
+    }
+
     /// Fetches and caches a table's column definitions (key <-> display name, and for
     /// single-/multi-select columns, option id <-> option text) from the base metadata endpoint.
     private func columns(forTable table: String) async throws -> [Column] {
@@ -98,14 +112,23 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
         let columns: [Column] = rawColumns.compactMap { raw in
             guard let key = raw["key"] as? String, let name = raw["name"] as? String else { return nil }
             var optionNamesByID: [String: String] = [:]
-            if let columnData = raw["data"] as? [String: Any], let options = columnData["options"] as? [[String: Any]] {
-                for option in options {
-                    if let optionID = option["id"] as? String, let optionName = option["name"] as? String {
-                        optionNamesByID[optionID] = optionName
+            var linkMetadata: LinkMetadata?
+            if let columnData = raw["data"] as? [String: Any] {
+                if let options = columnData["options"] as? [[String: Any]] {
+                    for option in options {
+                        if let optionID = option["id"] as? String, let optionName = option["name"] as? String {
+                            optionNamesByID[optionID] = optionName
+                        }
                     }
                 }
+                if raw["type"] as? String == "link",
+                   let linkID = columnData["link_id"] as? String,
+                   let tableID = columnData["table_id"] as? String,
+                   let otherTableID = columnData["other_table_id"] as? String {
+                    linkMetadata = LinkMetadata(linkID: linkID, tableID: tableID, otherTableID: otherTableID)
+                }
             }
-            return Column(key: key, name: name, optionNamesByID: optionNamesByID)
+            return Column(key: key, name: name, optionNamesByID: optionNamesByID, linkMetadata: linkMetadata)
         }
         cachedColumnsByTable[table] = columns
         return columns
@@ -163,6 +186,29 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
                     "row": fields.mapValues { $0.jsonObject }
                 ]
             ]
+        ])
+        let (data, response) = try await session.data(for: request)
+        try Self.validate(response: response, data: data)
+    }
+
+    /// Sets a link-column value between two rows. SeaTable's row create/update endpoints
+    /// silently drop values written to link columns (verified against the real API) - only
+    /// this dedicated endpoint actually establishes the link.
+    public func addLink(table: String, column: String, rowID: String, otherRowID: String) async throws {
+        let token = try await baseAccessToken()
+        let columns = try await columns(forTable: table)
+        guard let link = columns.first(where: { $0.name == column })?.linkMetadata else {
+            throw SeaTableAPIError.invalidResponse
+        }
+        var request = URLRequest(url: linksURL(dtableServer: token.dtableServer, dtableUUID: token.dtableUUID))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "link_id": link.linkID,
+            "table_id": link.tableID,
+            "other_table_id": link.otherTableID,
+            "other_rows_ids_map": [rowID: [otherRowID]]
         ])
         let (data, response) = try await session.data(for: request)
         try Self.validate(response: response, data: data)
