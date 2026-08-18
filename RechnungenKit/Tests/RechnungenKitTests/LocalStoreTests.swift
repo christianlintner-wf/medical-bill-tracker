@@ -119,6 +119,29 @@ final class LocalStoreTests: XCTestCase {
         XCTAssertEqual(updated?.status, .submittedToPublicInsurance)
     }
 
+    func test_upsertInvoiceByRemoteID_preservesLocalDateWhenUpdateIsPending() async throws {
+        let store = try makeStore()
+        let localDate = Date(timeIntervalSince1970: 1_700_000_000)
+        var invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        invoice.date = localDate
+        try await store.upsertInvoice(invoice)
+        try await store.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+        try await store.enqueueOutboxEntry(operation: .updateInvoiceDate, targetLocalID: invoice.id)
+
+        let row = SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"),
+            "Betrag": .number(150.0),
+            "Patient": .string("Christian"),
+            "Status": .string("Offen")
+            // No "Datum" field, simulating a remote row that hasn't picked up
+            // the pending local date yet (or a base missing the column).
+        ])
+        try await store.upsertInvoiceByRemoteID(row: row)
+
+        let updated = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertEqual(updated?.date, localDate, "a locally-set date awaiting sync must not be wiped by a stale/empty remote pull")
+    }
+
     func test_allInvoices_resolvesProviderNameFromProviderID() async throws {
         let store = try makeStore()
         let provider = Provider(name: "Dr. Mona Cooper")

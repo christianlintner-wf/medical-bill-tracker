@@ -97,7 +97,9 @@ public actor LocalStore {
             }
             existing.providerID = providerLocalID
             existing.providerRemoteRowID = providerRemoteRowID
-            existing.date = date
+            if try !hasPendingOutboxEntry(targetLocalID: existing.id, operation: .updateInvoiceDate) {
+                existing.date = date
+            }
         } else {
             modelContext.insert(InvoiceEntity(
                 remoteRowID: remoteID,
