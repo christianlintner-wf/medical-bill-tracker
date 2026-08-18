@@ -144,4 +144,20 @@ final class SyncEngineTests: XCTestCase {
         let syncedFinding = try await localStore.finding(byLocalID: finding.id)
         XCTAssertNil(syncedFinding?.remoteRowID)
     }
+
+    func test_processOutbox_sendsDatumFieldWhenInvoiceHasDate() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        await apiClient.setNextCreatedRowID("remote-invoice-1", forTable: "Arztrechnungen")
+        let localStore = try makeLocalStore()
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
+        var invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        invoice.date = SeaTableDateFormatter.date(from: "2026-08-17")
+        try await repository.createInvoice(invoice)
+
+        let engine = SyncEngine(apiClient: apiClient, localStore: localStore, fileStorage: makeFileStorage())
+        await engine.processOutbox()
+
+        let createdInvoiceFields = await apiClient.createdRows.first { $0.table == "Arztrechnungen" }?.fields
+        XCTAssertEqual(createdInvoiceFields?["Datum"], .string("2026-08-17"))
+    }
 }

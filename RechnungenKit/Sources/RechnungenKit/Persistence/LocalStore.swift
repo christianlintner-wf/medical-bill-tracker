@@ -79,6 +79,7 @@ public actor LocalStore {
         let statusRaw = row.fields["Status"].stringValue ?? InvoiceStatus.open.rawValue
         let providerLinkIDs = row.fields["Arzt"].stringArrayValue ?? []
         let providerRemoteRowID = providerLinkIDs.first
+        let date = row.fields["Datum"].stringValue.flatMap(SeaTableDateFormatter.date(from:))
 
         var providerLocalID: UUID?
         if let providerRemoteRowID {
@@ -96,11 +97,13 @@ public actor LocalStore {
             }
             existing.providerID = providerLocalID
             existing.providerRemoteRowID = providerRemoteRowID
+            existing.date = date
         } else {
             modelContext.insert(InvoiceEntity(
                 remoteRowID: remoteID,
                 invoiceNumber: invoiceNumber,
                 amount: Decimal(amount),
+                date: date,
                 patientRawValue: patientRaw,
                 providerID: providerLocalID,
                 providerRemoteRowID: providerRemoteRowID,

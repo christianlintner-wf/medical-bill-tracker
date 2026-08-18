@@ -290,4 +290,20 @@ final class LocalStoreTests: XCTestCase {
 
         XCTAssertEqual(stored?.date, date)
     }
+
+    func test_upsertInvoiceByRemoteID_parsesDatumField() async throws {
+        let store = try makeStore()
+        let row = SeaTableRow(id: "row-1", fields: [
+            "Rechnungsnummer": .string("2025-72"),
+            "Betrag": .number(150.0),
+            "Patient": .string("Christian"),
+            "Status": .string("Offen"),
+            "Datum": .string("2026-08-17")
+        ])
+
+        try await store.upsertInvoiceByRemoteID(row: row)
+
+        let invoices = try await store.allInvoices()
+        XCTAssertEqual(SeaTableDateFormatter.string(from: invoices[0].date!), "2026-08-17")
+    }
 }
