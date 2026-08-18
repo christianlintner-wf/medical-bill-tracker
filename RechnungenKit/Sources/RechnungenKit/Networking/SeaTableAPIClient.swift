@@ -209,10 +209,11 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
     }
 
     public func uploadFile(data: Data, fileName: String) async throws -> SeaTableUploadedFile {
-        let token = try await baseAccessToken()
-
+        // app-upload-link rejects the exchanged base access-token with 403 Permission denied
+        // (a deliberate SeaTable security change since v4.0) - it must be called with the raw
+        // API token instead, the same way app-access-token itself is authorized.
         var linkRequest = URLRequest(url: configuration.serverBaseURL.appendingPathComponent("api/v2.1/dtable/app-upload-link/"))
-        linkRequest.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        linkRequest.setValue("Token \(configuration.apiToken)", forHTTPHeaderField: "Authorization")
         let (linkData, linkResponse) = try await session.data(for: linkRequest)
         try Self.validate(response: linkResponse, data: linkData)
         guard
@@ -221,8 +222,15 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
             let parentPath = linkJSON["parent_path"] as? String,
             let fileRelativePath = linkJSON["file_relative_path"] as? String,
             let workspaceID = linkJSON["workspace_id"] as? Int,
-            let uploadLink = URL(string: uploadLinkString)
+            let uploadLinkBase = URL(string: uploadLinkString)
         else {
+            throw SeaTableAPIError.invalidResponse
+        }
+        // The underlying Seafile upload endpoint returns a tab-separated file list by default;
+        // ret-json=1 makes it return the JSON array this method parses below.
+        var uploadLinkComponents = URLComponents(url: uploadLinkBase, resolvingAgainstBaseURL: false)!
+        uploadLinkComponents.queryItems = [URLQueryItem(name: "ret-json", value: "1")]
+        guard let uploadLink = uploadLinkComponents.url else {
             throw SeaTableAPIError.invalidResponse
         }
 
