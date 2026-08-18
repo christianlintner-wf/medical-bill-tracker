@@ -5,6 +5,7 @@ import Foundation
 public final class ScanViewModel {
     public var invoiceNumber: String = ""
     public var amountText: String = ""
+    public var date: Date?
     public var patient: Patient = .christian
     public var selectedProviderID: UUID?
     public var status: InvoiceStatus = .open
@@ -30,6 +31,7 @@ public final class ScanViewModel {
             formatter.usesGroupingSeparator = false
             self.amountText = formatter.string(from: amount as NSDecimalNumber) ?? ""
         }
+        if let date = fields.date { self.date = date }
     }
 
     public func save(pdfData: Data, findingPDFData: Data? = nil) async {
@@ -44,6 +46,7 @@ public final class ScanViewModel {
             let invoice = Invoice(
                 invoiceNumber: invoiceNumber,
                 amount: amount,
+                date: date,
                 patient: patient,
                 providerID: selectedProviderID,
                 status: status,

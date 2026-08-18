@@ -106,4 +106,30 @@ final class ScanViewModelTests: XCTestCase {
         let stored = await repository.storedInvoices
         XCTAssertEqual(stored.first?.amount, Decimal(string: "19.99"))
     }
+
+    func test_scanViewModel_applyExtractedFields_prefillsDate() {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+
+        viewModel.applyExtractedFields(ExtractedInvoiceFields(invoiceNumber: "2025-72", amount: 150, date: date))
+
+        XCTAssertEqual(viewModel.date, date)
+    }
+
+    func test_scanViewModel_save_persistsDateOnCreatedInvoice() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        viewModel.date = date
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        let stored = await repository.storedInvoices
+        XCTAssertEqual(stored.first?.date, date)
+    }
 }
