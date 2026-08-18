@@ -25,7 +25,7 @@ Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 - [x] Speichern mit Befund-Scan legt nach dem Sync in SeaTable eine neue Zeile in der Tabelle "Befunde" an, mit hochgeladenem PDF in der Spalte "Befund" und Link zur zugehörigen Zeile in "Arztrechnungen"
 
 ## Board & Statuswechsel
-- [ ] Seitliches Wischen wechselt zwischen den 6 Status-Spalten
+- [ ] Horizontales Scrollen zeigt die 6 Status-Spalten nebeneinander (mit Peek der nächsten Spalte)
 - [ ] Eine Karte per Drag&Drop in die Nachbarspalte ziehen ändert den Status sofort lokal
 - [ ] Der Statuswechsel ist nach Sync auch in SeaTable direkt sichtbar
 - [ ] Tippen auf eine Karte öffnet die Detailansicht mit korrekten Werten

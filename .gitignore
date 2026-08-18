@@ -2,3 +2,4 @@
 *.xcodeproj/
 DerivedData/
 .swiftpm/
+.superpowers/

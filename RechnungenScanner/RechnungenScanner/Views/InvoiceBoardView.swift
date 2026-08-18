@@ -7,7 +7,6 @@ struct InvoiceBoardView: View {
     let onAddInvoice: () -> Void
     let onShowSettings: () -> Void
 
-    @State private var selectedStatus: InvoiceStatus = .open
     @State private var selectedPatient: Patient?
     @State private var draggingInvoice: Invoice?
 
@@ -22,13 +21,17 @@ struct InvoiceBoardView: View {
                         .padding(.vertical, 4)
                 }
                 patientFilterBar
-                TabView(selection: $selectedStatus) {
-                    ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                        columnView(for: status)
-                            .tag(status)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(InvoiceStatus.allCases, id: \.self) { status in
+                            columnView(for: status)
+                                .containerRelativeFrame(.horizontal, count: 2, span: 1, spacing: 12)
+                        }
                     }
+                    .scrollTargetLayout()
+                    .padding(.horizontal)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
+                .scrollTargetBehavior(.viewAligned)
             }
             .navigationTitle("Arztrechnungen")
             .toolbar {
@@ -94,11 +97,23 @@ struct InvoiceBoardView: View {
                 .padding(.horizontal)
             }
         }
+        .background(color(for: status).opacity(0.08))
         .onDrop(of: [.text], isTargeted: nil) { _ in
             guard let invoice = draggingInvoice else { return false }
             Task { await viewModel.moveInvoice(invoice, to: status) }
             draggingInvoice = nil
             return true
+        }
+    }
+
+    private func color(for status: InvoiceStatus) -> Color {
+        switch status {
+        case .open: .orange
+        case .submittedToPublicInsurance: .blue
+        case .publicInsuranceCompleted: .teal
+        case .submittedToPrivateInsurance: .purple
+        case .privateInsuranceCompleted: .indigo
+        case .done: .gray
         }
     }
 }
