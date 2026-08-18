@@ -8,6 +8,7 @@ struct InvoiceBoardView: View {
     let onShowSettings: () -> Void
 
     @State private var selectedStatus: InvoiceStatus = .open
+    @State private var selectedPatient: Patient?
     @State private var draggingInvoice: Invoice?
 
     var body: some View {
@@ -20,6 +21,7 @@ struct InvoiceBoardView: View {
                         .padding(.horizontal)
                         .padding(.vertical, 4)
                 }
+                patientFilterBar
                 TabView(selection: $selectedStatus) {
                     ForEach(InvoiceStatus.allCases, id: \.self) { status in
                         columnView(for: status)
@@ -41,6 +43,38 @@ struct InvoiceBoardView: View {
         }
     }
 
+    private var patientFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                patientFilterChip(title: "Alle", isSelected: selectedPatient == nil) {
+                    selectedPatient = nil
+                }
+                ForEach(Patient.allCases, id: \.self) { patient in
+                    patientFilterChip(title: patient.rawValue, isSelected: selectedPatient == patient) {
+                        selectedPatient = patient
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private func patientFilterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .background(Capsule().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.15)))
+    }
+
+    private func invoices(for status: InvoiceStatus) -> [Invoice] {
+        let invoices = viewModel.invoicesByStatus[status] ?? []
+        guard let selectedPatient else { return invoices }
+        return invoices.filter { $0.patient == selectedPatient }
+    }
+
     private func columnView(for status: InvoiceStatus) -> some View {
         ScrollView {
             VStack(alignment: .leading) {
@@ -48,7 +82,7 @@ struct InvoiceBoardView: View {
                     .font(.title3.bold())
                     .padding(.horizontal)
                 LazyVStack(spacing: 12) {
-                    ForEach(viewModel.invoicesByStatus[status] ?? []) { invoice in
+                    ForEach(invoices(for: status)) { invoice in
                         InvoiceCardView(invoice: invoice)
                             .onTapGesture { onSelectInvoice(invoice) }
                             .onDrag {
