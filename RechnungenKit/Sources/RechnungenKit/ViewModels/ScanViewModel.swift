@@ -5,7 +5,7 @@ import Foundation
 public final class ScanViewModel {
     public var invoiceNumber: String = ""
     public var amountText: String = ""
-    public var date: Date?
+    public var date: Date? = Date()
     public var patient: Patient = .christian
     public var selectedProviderID: UUID?
     public var status: InvoiceStatus = .open

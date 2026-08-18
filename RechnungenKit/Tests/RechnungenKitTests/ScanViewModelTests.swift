@@ -118,6 +118,19 @@ final class ScanViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.date, date)
     }
 
+    func test_scanViewModel_save_withoutOCRDate_stillPersistsANonNilDate() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        let stored = await repository.storedInvoices
+        XCTAssertNotNil(stored.first?.date, "an invoice must always be created with a date, otherwise it can never be exported for submission")
+    }
+
     func test_scanViewModel_save_persistsDateOnCreatedInvoice() async {
         let repository = MockInvoiceRepository()
         let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
