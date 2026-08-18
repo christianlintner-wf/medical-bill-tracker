@@ -97,9 +97,7 @@ public actor LocalStore {
             }
             existing.providerID = providerLocalID
             existing.providerRemoteRowID = providerRemoteRowID
-            let dateSyncPending = try hasPendingOutboxEntry(targetLocalID: existing.id, operation: .updateInvoiceDate)
-            print("[DEBUG] upsertInvoiceByRemoteID: remoteID=\(remoteID) remoteDatumField=\(String(describing: row.fields["Datum"])) parsedDate=\(String(describing: date)) currentLocalDate=\(String(describing: existing.date)) dateSyncPending=\(dateSyncPending)")
-            if !dateSyncPending {
+            if try !hasPendingOutboxEntry(targetLocalID: existing.id, operation: .updateInvoiceDate) {
                 existing.date = date
             }
         } else {
