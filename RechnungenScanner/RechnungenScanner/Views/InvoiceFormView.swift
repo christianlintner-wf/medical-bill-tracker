@@ -16,6 +16,14 @@ struct InvoiceFormView: View {
                 TextField("Rechnungsnummer", text: $viewModel.invoiceNumber)
                 TextField("Betrag", text: $viewModel.amountText)
                     .keyboardType(.decimalPad)
+                DatePicker(
+                    "Datum",
+                    selection: Binding(
+                        get: { viewModel.date ?? Date() },
+                        set: { viewModel.date = $0 }
+                    ),
+                    displayedComponents: .date
+                )
             }
             Section("Befund") {
                 if findingPDFData != nil {
