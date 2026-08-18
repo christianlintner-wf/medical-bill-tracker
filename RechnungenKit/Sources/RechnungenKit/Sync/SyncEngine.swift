@@ -38,6 +38,10 @@ public actor SyncEngine {
                 try await syncUpdateStatus(localID: entry.targetLocalID)
             case .uploadInvoiceFile:
                 try await syncUploadFile(localID: entry.targetLocalID)
+            case .createFinding:
+                try await syncCreateFinding(localID: entry.targetLocalID)
+            case .uploadFindingFile:
+                try await syncUploadFindingFile(localID: entry.targetLocalID)
             case .none:
                 break
             }
@@ -109,5 +113,43 @@ public actor SyncEngine {
             fields: ["Arztrechnung": .fileArray([SeaTableFileValue(name: uploaded.name, size: uploaded.size, url: uploaded.url)])]
         )
         try await localStore.setInvoiceRemoteFileURL(localID: localID, url: uploaded.url)
+    }
+
+    private func syncCreateFinding(localID: UUID) async throws {
+        guard let finding = try await localStore.finding(byLocalID: localID), finding.remoteRowID == nil else { return }
+
+        let resolvedInvoiceRemoteRowID: String?
+        if let invoiceRemoteRowID = finding.invoiceRemoteRowID {
+            resolvedInvoiceRemoteRowID = invoiceRemoteRowID
+        } else {
+            resolvedInvoiceRemoteRowID = try await localStore.invoice(byLocalID: finding.invoiceID)?.remoteRowID
+        }
+        guard let invoiceRemoteRowID = resolvedInvoiceRemoteRowID else {
+            throw SyncError.dependencyNotReady
+        }
+
+        let rowID = try await apiClient.createRow(table: "Befunde", fields: [:])
+        // Same as the Arzt link on Arztrechnungen: SeaTable drops link values written through
+        // createRow/updateRow, so the Befunde<->Arztrechnungen link must go through addLink.
+        try await apiClient.addLink(table: "Arztrechnungen", column: "Befunde", rowID: invoiceRemoteRowID, otherRowID: rowID)
+        try await localStore.setFindingRemoteRowID(localID: localID, remoteRowID: rowID)
+    }
+
+    private func syncUploadFindingFile(localID: UUID) async throws {
+        guard
+            let finding = try await localStore.finding(byLocalID: localID),
+            let remoteRowID = finding.remoteRowID,
+            let fileName = finding.localPDFFileName
+        else {
+            throw SyncError.dependencyNotReady
+        }
+        let data = try fileStorage.read(fileName: fileName)
+        let uploaded = try await apiClient.uploadFile(data: data, fileName: fileName)
+        try await apiClient.updateRow(
+            table: "Befunde",
+            rowID: remoteRowID,
+            fields: ["Befund": .fileArray([SeaTableFileValue(name: uploaded.name, size: uploaded.size, url: uploaded.url)])]
+        )
+        try await localStore.setFindingRemoteFileURL(localID: localID, url: uploaded.url)
     }
 }

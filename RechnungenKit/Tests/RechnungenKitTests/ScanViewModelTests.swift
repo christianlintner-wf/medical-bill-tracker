@@ -63,6 +63,37 @@ final class ScanViewModelTests: XCTestCase {
         XCTAssertTrue(stored.isEmpty)
     }
 
+    func test_scanViewModel_save_withFindingPDFData_createsFindingLinkedToInvoice() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8), findingPDFData: Data("befund-bytes".utf8))
+
+        XCTAssertTrue(viewModel.didSave)
+        let storedInvoices = await repository.storedInvoices
+        let storedFindings = await repository.storedFindings
+        XCTAssertEqual(storedFindings.count, 1)
+        XCTAssertEqual(storedFindings.first?.invoiceID, storedInvoices.first?.id)
+        XCTAssertNotNil(storedFindings.first?.localPDFFileName)
+    }
+
+    func test_scanViewModel_save_withoutFindingPDFData_createsNoFinding() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertTrue(viewModel.didSave)
+        let storedFindings = await repository.storedFindings
+        XCTAssertTrue(storedFindings.isEmpty)
+    }
+
     func test_scanViewModel_ocrPrefillThenSave_roundTripsFractionalAmountCorrectly() async {
         let repository = MockInvoiceRepository()
         let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))

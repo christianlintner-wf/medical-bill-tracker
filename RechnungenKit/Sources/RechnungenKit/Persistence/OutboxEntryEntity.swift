@@ -6,6 +6,8 @@ public enum OutboxOperation: String, Codable, Sendable {
     case createInvoice
     case updateInvoiceStatus
     case uploadInvoiceFile
+    case createFinding
+    case uploadFindingFile
 }
 
 @Model

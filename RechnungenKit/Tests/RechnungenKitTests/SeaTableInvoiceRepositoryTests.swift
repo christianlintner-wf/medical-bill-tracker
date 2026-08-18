@@ -4,7 +4,7 @@ import SwiftData
 
 final class SeaTableInvoiceRepositoryTests: XCTestCase {
     private func makeLocalStore() throws -> LocalStore {
-        let schema = Schema([ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self])
+        let schema = Schema([ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self, FindingEntity.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [configuration])
         return LocalStore(modelContainer: container)
@@ -133,5 +133,24 @@ final class SeaTableInvoiceRepositoryTests: XCTestCase {
         XCTAssertEqual(stored?.status, .submittedToPublicInsurance)
         let pending = try await localStore.pendingOutboxEntries()
         XCTAssertTrue(pending.contains { $0.operationRawValue == OutboxOperation.updateInvoiceStatus.rawValue })
+    }
+
+    func test_createFinding_persistsLocallyAndEnqueuesOutbox() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        let localStore = try makeLocalStore()
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
+        let invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        try await repository.createInvoice(invoice)
+        let finding = Finding(invoiceID: invoice.id, localPDFFileName: "befund.pdf")
+
+        try await repository.createFinding(finding)
+
+        let stored = try await localStore.finding(byLocalID: finding.id)
+        XCTAssertNotNil(stored)
+        let pending = try await localStore.pendingOutboxEntries()
+        XCTAssertEqual(Set(pending.filter { $0.targetLocalID == finding.id }.map(\.operationRawValue)), [
+            OutboxOperation.createFinding.rawValue,
+            OutboxOperation.uploadFindingFile.rawValue
+        ])
     }
 }

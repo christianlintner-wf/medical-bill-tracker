@@ -32,7 +32,7 @@ public final class ScanViewModel {
         }
     }
 
-    public func save(pdfData: Data) async {
+    public func save(pdfData: Data, findingPDFData: Data? = nil) async {
         let normalizedAmount = amountText.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
         guard let amount = Decimal(string: normalizedAmount), amount > 0 else {
             errorMessage = "Ungültiger Betrag"
@@ -50,6 +50,12 @@ public final class ScanViewModel {
                 localPDFFileName: fileName
             )
             try await repository.createInvoice(invoice)
+            if let findingPDFData {
+                let findingFileName = "\(UUID().uuidString).pdf"
+                try fileStorage.save(findingPDFData, fileName: findingFileName)
+                let finding = Finding(invoiceID: invoice.id, localPDFFileName: findingFileName)
+                try await repository.createFinding(finding)
+            }
             didSave = true
         } catch {
             errorMessage = String(describing: error)

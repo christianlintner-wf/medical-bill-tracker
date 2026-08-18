@@ -4,6 +4,7 @@ import Foundation
 actor MockInvoiceRepository: InvoiceRepositoryProtocol {
     var storedInvoices: [Invoice] = []
     var storedProviders: [Provider] = []
+    var storedFindings: [Finding] = []
     var statusUpdates: [(invoiceID: UUID, status: InvoiceStatus)] = []
     var errorToThrow: Error?
 
@@ -39,6 +40,11 @@ actor MockInvoiceRepository: InvoiceRepositoryProtocol {
         if let index = storedInvoices.firstIndex(where: { $0.id == invoiceID }) {
             storedInvoices[index].status = newStatus
         }
+    }
+
+    func createFinding(_ finding: Finding) async throws {
+        if let errorToThrow { throw errorToThrow }
+        storedFindings.append(finding)
     }
 }
 

@@ -37,4 +37,14 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(provider.remoteRowID)
         XCTAssertEqual(provider.name, "Dr. Mona Cooper")
     }
+
+    func test_finding_defaultsToNilRemoteState() {
+        let invoiceID = UUID()
+        let finding = Finding(invoiceID: invoiceID)
+        XCTAssertNil(finding.remoteRowID)
+        XCTAssertNil(finding.invoiceRemoteRowID)
+        XCTAssertNil(finding.localPDFFileName)
+        XCTAssertNil(finding.remoteFileURL)
+        XCTAssertEqual(finding.invoiceID, invoiceID)
+    }
 }

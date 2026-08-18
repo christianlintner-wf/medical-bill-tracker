@@ -4,7 +4,7 @@ import SwiftData
 
 final class LocalStoreTests: XCTestCase {
     private func makeStore() throws -> LocalStore {
-        let schema = Schema([ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self])
+        let schema = Schema([ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self, FindingEntity.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [configuration])
         return LocalStore(modelContainer: container)
@@ -238,5 +238,45 @@ final class LocalStoreTests: XCTestCase {
 
         XCTAssertEqual(entry.attemptCount, 1)
         XCTAssertEqual(entry.lastErrorDescription, "network down")
+    }
+
+    func test_upsertFinding_thenFindingByLocalID_roundTrips() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        let finding = Finding(invoiceID: invoice.id, localPDFFileName: "befund.pdf")
+
+        try await store.upsertFinding(finding)
+        let stored = try await store.finding(byLocalID: finding.id)
+
+        XCTAssertEqual(stored?.invoiceID, invoice.id)
+        XCTAssertEqual(stored?.localPDFFileName, "befund.pdf")
+        XCTAssertNil(stored?.remoteRowID)
+    }
+
+    func test_setFindingRemoteRowID_updatesStoredFinding() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        let finding = Finding(invoiceID: invoice.id)
+        try await store.upsertFinding(finding)
+
+        try await store.setFindingRemoteRowID(localID: finding.id, remoteRowID: "finding-row-1")
+        let updated = try await store.finding(byLocalID: finding.id)
+
+        XCTAssertEqual(updated?.remoteRowID, "finding-row-1")
+    }
+
+    func test_setFindingRemoteFileURL_updatesStoredFinding() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        let finding = Finding(invoiceID: invoice.id)
+        try await store.upsertFinding(finding)
+
+        try await store.setFindingRemoteFileURL(localID: finding.id, url: "/asset/befund.pdf")
+        let updated = try await store.finding(byLocalID: finding.id)
+
+        XCTAssertEqual(updated?.remoteFileURL, "/asset/befund.pdf")
     }
 }

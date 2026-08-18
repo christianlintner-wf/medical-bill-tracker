@@ -52,4 +52,12 @@ public actor SeaTableInvoiceRepository: InvoiceRepositoryProtocol {
         try await localStore.updateInvoiceStatus(id: invoiceID, status: newStatus)
         try await localStore.enqueueOutboxEntry(operation: .updateInvoiceStatus, targetLocalID: invoiceID)
     }
+
+    public func createFinding(_ finding: Finding) async throws {
+        try await localStore.upsertFinding(finding)
+        try await localStore.enqueueOutboxEntry(operation: .createFinding, targetLocalID: finding.id)
+        if finding.localPDFFileName != nil {
+            try await localStore.enqueueOutboxEntry(operation: .uploadFindingFile, targetLocalID: finding.id)
+        }
+    }
 }

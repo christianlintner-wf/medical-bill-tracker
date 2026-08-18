@@ -7,12 +7,26 @@ struct InvoiceFormView: View {
     let pdfData: Data
     let onSaved: () -> Void
 
+    @State private var isScanningFinding = false
+    @State private var findingPDFData: Data?
+
     var body: some View {
         Form {
             Section("Rechnung") {
                 TextField("Rechnungsnummer", text: $viewModel.invoiceNumber)
                 TextField("Betrag", text: $viewModel.amountText)
                     .keyboardType(.decimalPad)
+            }
+            Section("Befund") {
+                if findingPDFData != nil {
+                    HStack {
+                        Text("Befund gescannt")
+                        Spacer()
+                        Button("Entfernen", role: .destructive) { findingPDFData = nil }
+                    }
+                } else {
+                    Button("Befund scannen") { isScanningFinding = true }
+                }
             }
             Section("Zuordnung") {
                 Picker("Patient", selection: $viewModel.patient) {
@@ -36,12 +50,21 @@ struct InvoiceFormView: View {
             }
             Button("Speichern") {
                 Task {
-                    await viewModel.save(pdfData: pdfData)
+                    await viewModel.save(pdfData: pdfData, findingPDFData: findingPDFData)
                     if viewModel.didSave { onSaved() }
                 }
             }
         }
         .navigationTitle("Neue Rechnung")
+        .sheet(isPresented: $isScanningFinding) {
+            ScanFlowView(
+                onScanned: { data in
+                    findingPDFData = data
+                    isScanningFinding = false
+                },
+                onCancelled: { isScanningFinding = false }
+            )
+        }
     }
 
     private var selectedProviderName: String {

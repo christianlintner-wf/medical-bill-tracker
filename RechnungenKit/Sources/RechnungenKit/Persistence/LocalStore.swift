@@ -201,6 +201,55 @@ public actor LocalStore {
         try modelContext.save()
     }
 
+    public func upsertFinding(_ finding: Finding) throws {
+        let targetID = finding.id
+        let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.id == targetID })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.remoteRowID = finding.remoteRowID
+            existing.invoiceID = finding.invoiceID
+            existing.invoiceRemoteRowID = finding.invoiceRemoteRowID
+            existing.localPDFFileName = finding.localPDFFileName
+            existing.remoteFileURL = finding.remoteFileURL
+        } else {
+            modelContext.insert(FindingEntity(
+                id: finding.id,
+                remoteRowID: finding.remoteRowID,
+                invoiceID: finding.invoiceID,
+                invoiceRemoteRowID: finding.invoiceRemoteRowID,
+                localPDFFileName: finding.localPDFFileName,
+                remoteFileURL: finding.remoteFileURL
+            ))
+        }
+        try modelContext.save()
+    }
+
+    public func finding(byLocalID id: UUID) throws -> Finding? {
+        let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return nil }
+        return Finding(
+            id: entity.id,
+            remoteRowID: entity.remoteRowID,
+            invoiceID: entity.invoiceID,
+            invoiceRemoteRowID: entity.invoiceRemoteRowID,
+            localPDFFileName: entity.localPDFFileName,
+            remoteFileURL: entity.remoteFileURL
+        )
+    }
+
+    public func setFindingRemoteRowID(localID: UUID, remoteRowID: String) throws {
+        let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.id == localID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.remoteRowID = remoteRowID
+        try modelContext.save()
+    }
+
+    public func setFindingRemoteFileURL(localID: UUID, url: String) throws {
+        let descriptor = FetchDescriptor<FindingEntity>(predicate: #Predicate { $0.id == localID })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        entity.remoteFileURL = url
+        try modelContext.save()
+    }
+
     private func makeEntity(from invoice: Invoice) -> InvoiceEntity {
         InvoiceEntity(
             id: invoice.id,

@@ -24,7 +24,7 @@ final class CompositionRoot {
 
         let apiClient = SeaTableAPIClient(configuration: .init(apiToken: token))
         Self.ensureApplicationSupportDirectoryExists()
-        let container = try! ModelContainer(for: ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self)
+        let container = try! ModelContainer(for: ProviderEntity.self, InvoiceEntity.self, OutboxEntryEntity.self, FindingEntity.self)
         let localStore = LocalStore(modelContainer: container)
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let fileStorage = LocalFileStorage(directory: documentsURL.appendingPathComponent("Scans"))

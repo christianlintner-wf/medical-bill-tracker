@@ -8,14 +8,21 @@ Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 - [x] Nach dem Speichern erscheint das Rechnungs-Board
 
 ## Scan-Flow
-- [ ] "+" öffnet die Kamera (VisionKit-Scanner)
-- [ ] Eine echte Arztrechnung fotografieren (Mehrseiten-Scan testen: 2 Seiten)
-- [ ] Nach dem Scan öffnet sich das Formular vorausgefüllt (Betrag/Rechnungsnummer, wo im Dokument vorhanden)
-- [ ] Vorbefüllte Werte vor dem Speichern korrigieren funktioniert
-- [ ] Neuen Arzt anlegen funktioniert und ist danach im Picker auswählbar
-- [ ] Nach "Speichern" erscheint die Karte sofort im Board mit "Wartet auf Sync"
-- [ ] Spätestens beim nächsten Wechsel in den Vordergrund (oder App-Neustart) verschwindet das Sync-Icon und der Eintrag ist in SeaTable sichtbar (inkl. hochgeladenem PDF)
-- [ ] Nach Pull-to-Refresh erscheint eine in SeaTable direkt angelegte Rechnung korrekt mit Arzt-Zuordnung und Status im Board (prüft, dass die Feldformate für Link-Spalten wirklich mit der echten API übereinstimmen — dies ist bisher nur gegen einen Mock getestet)
+- [x] "+" öffnet die Kamera (VisionKit-Scanner)
+- [x] Eine echte Arztrechnung fotografieren (Mehrseiten-Scan testen: 2 Seiten)
+- [x] Nach dem Scan öffnet sich das Formular vorausgefüllt (Betrag/Rechnungsnummer, wo im Dokument vorhanden)
+- [x] Vorbefüllte Werte vor dem Speichern korrigieren funktioniert
+- [x] Neuen Arzt anlegen funktioniert und ist danach im Picker auswählbar
+- [x] Nach "Speichern" erscheint die Karte sofort im Board mit "Wartet auf Sync"
+- [x] Spätestens beim nächsten Wechsel in den Vordergrund (oder App-Neustart) verschwindet das Sync-Icon und der Eintrag ist in SeaTable sichtbar (inkl. hochgeladenem PDF)
+- [x] Nach Pull-to-Refresh erscheint eine in SeaTable direkt angelegte Rechnung korrekt mit Arzt-Zuordnung und Status im Board (prüft, dass die Feldformate für Link-Spalten wirklich mit der echten API übereinstimmen — dies ist bisher nur gegen einen Mock getestet)
+
+## Befund-Scan (optional bei Rechnungsanlage)
+- [x] Im Formular gibt es einen Abschnitt "Befund" mit Button "Befund scannen"
+- [x] "Befund scannen" öffnet erneut die Kamera; nach dem Scan zeigt der Abschnitt "Befund gescannt" statt des Buttons
+- [x] "Entfernen" macht den Befund-Scan rückgängig, der Button "Befund scannen" erscheint wieder
+- [x] Speichern ohne Befund-Scan funktioniert weiterhin wie bisher (kein Befund-Eintrag in SeaTable)
+- [x] Speichern mit Befund-Scan legt nach dem Sync in SeaTable eine neue Zeile in der Tabelle "Befunde" an, mit hochgeladenem PDF in der Spalte "Befund" und Link zur zugehörigen Zeile in "Arztrechnungen"
 
 ## Board & Statuswechsel
 - [ ] Seitliches Wischen wechselt zwischen den 6 Status-Spalten
