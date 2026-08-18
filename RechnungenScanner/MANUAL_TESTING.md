@@ -24,6 +24,21 @@ Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 - [x] Speichern ohne Befund-Scan funktioniert weiterhin wie bisher (kein Befund-Eintrag in SeaTable)
 - [x] Speichern mit Befund-Scan legt nach dem Sync in SeaTable eine neue Zeile in der Tabelle "Befunde" an, mit hochgeladenem PDF in der Spalte "Befund" und Link zur zugehörigen Zeile in "Arztrechnungen"
 
+## Einreichungs-Export
+- [ ] Im Formular für eine neue Rechnung lässt sich das Datum manuell setzen/korrigieren (DatePicker vorbefüllt mit OCR-Wert, falls erkannt)
+- [ ] In den Einstellungen zeigt "Einreichungs-Ordner" zunächst "Nicht konfiguriert"
+- [ ] "Ordner wählen" öffnet den System-Ordnerauswahl-Dialog; nach Auswahl eines Ordners (z. B. eines iCloud-Drive-Unterordners) zeigt die Einstellungen-Ansicht dessen Namen
+- [ ] Nach App-Neustart bleibt der gewählte Ordner konfiguriert (Bookmark übersteht einen Neustart)
+- [ ] In den Einstellungen unter "Patienten-Links" für einen Patienten einen ÖGK-Link und einen Merkur-Link eintragen; nach Verlassen der Ansicht und erneutem Öffnen sind beide Werte noch da
+- [ ] Bei einer Rechnung mit Status "Offen" zeigt die Detailansicht einen Abschnitt "Einreichung" mit den Buttons "Für ÖGK vorbereiten", "Ordner öffnen" und "Bei ÖGK öffnen"
+- [ ] "Für ÖGK vorbereiten" ohne konfigurierten Ordner zeigt eine Fehlermeldung, die auf die Einstellungen verweist
+- [ ] Nach Konfiguration des Ordners: "Für ÖGK vorbereiten" legt `<Ordner>/<Jahr>/ÖGK/<Datum>_<Patient>_<Arzt>_<Betrag>EUR_Rechnung.pdf` an (und `..._Befund.pdf`, falls ein Befund gescannt wurde) und zeigt eine Erfolgsmeldung
+- [ ] "Ordner öffnen" wechselt zur Dateien-App und zeigt den `ÖGK`-Unterordner mit der/den frisch abgelegten Datei(en)
+- [ ] "Bei ÖGK öffnen" ist ausgeblendet, solange für den Patienten kein ÖGK-Link hinterlegt ist; nach Hinterlegen öffnet er Safari mit dem hinterlegten Link
+- [ ] Direkt nach "Ordner öffnen" in Safari eine beliebige Upload-Seite öffnen und den System-Dateiauswahl-Dialog aufrufen: der zuvor geöffnete Ordner erscheint dort unter "Zuletzt"
+- [ ] Rechnung auf Status "Krankenkasse abgeschlossen" ziehen: Detailansicht zeigt jetzt "Für Merkur vorbereiten" / "Bei Merkur öffnen" statt ÖGK, und der Export legt die Dateien unter `.../Merkur/` ab
+- [ ] Rechnung auf einen Status ab "Merkur eingereicht" ziehen: der "Einreichung"-Abschnitt verschwindet komplett aus der Detailansicht
+
 ## Board & Statuswechsel
 - [ ] Horizontales Scrollen zeigt die 6 Status-Spalten nebeneinander (mit Peek der nächsten Spalte)
 - [ ] Eine Karte per Drag&Drop in die Nachbarspalte ziehen ändert den Status sofort lokal
