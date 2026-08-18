@@ -33,7 +33,7 @@ struct InvoiceDetailView: View {
                         Text(status.rawValue).tag(status)
                     }
                 }
-                .pickerStyle(.inline)
+                .pickerStyle(.menu)
             }
             if let target = viewModel.submissionTarget {
                 Section("Einreichung") {
