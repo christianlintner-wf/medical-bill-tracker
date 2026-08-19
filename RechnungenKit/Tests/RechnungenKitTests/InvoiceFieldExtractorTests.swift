@@ -126,4 +126,29 @@ final class InvoiceFieldExtractorTests: XCTestCase {
 
         XCTAssertEqual(result.amount, Decimal(string: "63.40"))
     }
+
+    /// Reproduces a real GOÄ "Honorarnote" (Dr. Stollwerck, issue #20): "Rechnungsbetrag"
+    /// appears as a stray label embedded in unrelated payment-instructions boilerplate, far
+    /// from any value, while the actual grand total follows a "Summe" label together with two
+    /// per-item subtotals - the grand total is the LAST of the three numbers, not the first.
+    func test_extract_findsGrandTotalAfterSummeLabelIgnoringDistantRechnungsbetragLabel() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "Rechnungsbetrag",
+            "Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer",
+            "bis zum 21.08.26 auf das folgende Konto.",
+            "IBAN: DE42 6006 9462 0024 4000 09",
+            "EUR Faktor",
+            "4,66",
+            "2,300",
+            "9,33",
+            "2,300",
+            "EUR",
+            "Summe",
+            "10,72",
+            "21,46",
+            "32,18"
+        ])
+
+        XCTAssertEqual(result.amount, Decimal(string: "32.18"))
+    }
 }

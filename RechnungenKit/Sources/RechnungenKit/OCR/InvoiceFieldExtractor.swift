@@ -79,24 +79,32 @@ public struct InvoiceFieldExtractor: Sendable {
     }
 
     /// A line-item's unit price often precedes the actual total in OCR reading order, so
-    /// prefer the amount that follows a total-line keyword before falling back to the first
+    /// prefer an amount that follows a total-line keyword before falling back to the first
     /// amount found anywhere on the page.
+    ///
+    /// Use the LAST matching keyword line, not the first: GOÄ "Honorarnoten" (e.g. Dr.
+    /// Stollwerck, issue #20) print "Rechnungsbetrag" as a stray label embedded in unrelated
+    /// payment-instructions boilerplate, far above the real total, while the actual sum
+    /// follows a later "Summe" label. Within that keyword's window, take the LAST amount
+    /// rather than the first: such invoices list per-item subtotals before the grand total,
+    /// so the grand total is the final number, not the one immediately after the label.
     private static func totalAmount(in lines: [String]) -> Decimal? {
-        guard let keywordIndex = lines.firstIndex(where: { line in
+        guard let keywordIndex = lines.lastIndex(where: { line in
             line.range(
-                of: #"Rechnungsbetrag|Gesamtbetrag|Endbetrag"#,
+                of: #"Rechnungsbetrag|Gesamtbetrag|Endbetrag|Summe"#,
                 options: [.regularExpression, .caseInsensitive]
             ) != nil
         }) else {
             return nil
         }
         let searchEnd = min(keywordIndex + 4, lines.count)
+        var result: Decimal?
         for line in lines[keywordIndex..<searchEnd] {
             if let value = amount(in: line) {
-                return value
+                result = value
             }
         }
-        return nil
+        return result
     }
 
     private static func date(in line: String) -> Date? {
