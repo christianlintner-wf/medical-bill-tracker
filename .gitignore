@@ -3,3 +3,6 @@
 DerivedData/
 .swiftpm/
 .superpowers/
+
+# Contains personal health data (medical invoices) - local test fixtures only
+/Arztrechnungen/

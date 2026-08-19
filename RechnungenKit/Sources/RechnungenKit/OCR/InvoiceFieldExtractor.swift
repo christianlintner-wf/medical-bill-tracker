@@ -5,6 +5,7 @@ public struct InvoiceFieldExtractor: Sendable {
 
     public func extract(from lines: [String]) -> ExtractedInvoiceFields {
         var result = ExtractedInvoiceFields()
+        result.amount = Self.totalAmount(in: lines)
         for line in lines {
             if result.invoiceNumber == nil, let value = Self.invoiceNumber(in: line) {
                 result.invoiceNumber = value
@@ -24,16 +25,19 @@ public struct InvoiceFieldExtractor: Sendable {
 
     private static func invoiceNumber(in line: String) -> String? {
         guard let keywordRange = line.range(
-            of: #"Rechnungs(nummer|nr\.?)"#,
+            of: #"Rechnungs[\-\s]?(nummer|nr\.?)|Honorarnote(n)?\s*nr\.?|\bRe\.?\s?Nr\.?"#,
             options: [.regularExpression, .caseInsensitive]
         ) else {
             return nil
         }
         let remainder = line[keywordRange.upperBound...]
-        guard let valueRange = remainder.range(of: #"[A-Za-z0-9\-/]+"#, options: .regularExpression) else {
+        guard let valueRange = remainder.range(
+            of: #"[A-Za-z0-9]+(\s?[\-/]\s?[A-Za-z0-9]+)*"#,
+            options: .regularExpression
+        ) else {
             return nil
         }
-        return String(remainder[valueRange])
+        return String(remainder[valueRange]).replacingOccurrences(of: " ", with: "")
     }
 
     /// Some invoices lay the "Rechnungsnummer:" label and its value out in separate table
@@ -60,13 +64,39 @@ public struct InvoiceFieldExtractor: Sendable {
     }
 
     private static func amount(in line: String) -> Decimal? {
-        guard let range = line.range(of: #"\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}"#, options: .regularExpression) else {
+        if let range = line.range(of: #"\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}"#, options: .regularExpression) {
+            let normalized = String(line[range])
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+            return Decimal(string: normalized)
+        }
+        // Round-euro amounts are commonly written "100,-" or "100.-" instead of "100,00".
+        if let range = line.range(of: #"\d+[,.]-"#, options: .regularExpression) {
+            let whole = String(line[range]).dropLast(2)
+            return Decimal(string: String(whole))
+        }
+        return nil
+    }
+
+    /// A line-item's unit price often precedes the actual total in OCR reading order, so
+    /// prefer the amount that follows a total-line keyword before falling back to the first
+    /// amount found anywhere on the page.
+    private static func totalAmount(in lines: [String]) -> Decimal? {
+        guard let keywordIndex = lines.firstIndex(where: { line in
+            line.range(
+                of: #"Rechnungsbetrag|Gesamtbetrag|Endbetrag"#,
+                options: [.regularExpression, .caseInsensitive]
+            ) != nil
+        }) else {
             return nil
         }
-        let normalized = String(line[range])
-            .replacingOccurrences(of: ".", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-        return Decimal(string: normalized)
+        let searchEnd = min(keywordIndex + 4, lines.count)
+        for line in lines[keywordIndex..<searchEnd] {
+            if let value = amount(in: line) {
+                return value
+            }
+        }
+        return nil
     }
 
     private static func date(in line: String) -> Date? {

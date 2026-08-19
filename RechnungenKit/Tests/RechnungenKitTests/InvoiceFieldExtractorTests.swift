@@ -65,4 +65,65 @@ final class InvoiceFieldExtractorTests: XCTestCase {
 
         XCTAssertNil(result.invoiceNumber)
     }
+
+    /// Austrian Wahlarzt invoices ("Honorarnoten") almost never use the word "Rechnungsnummer" -
+    /// they label their reference number "Honorarnote Nr." or the compound "Honorarnotennr."
+    func test_extract_findsInvoiceNumberLabelledHonorarnoteNr() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "Honorarnote Nr. 1234/056."
+        ])
+
+        XCTAssertEqual(result.invoiceNumber, "1234/056")
+    }
+
+    func test_extract_findsInvoiceNumberLabelledHonorarnotennr() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "Honorarnotennr. 2099/0042"
+        ])
+
+        XCTAssertEqual(result.invoiceNumber, "2099/0042")
+    }
+
+    /// Vision's OCR frequently renders a printed "/" as "/" surrounded by stray spaces
+    /// (e.g. "2025 / 108"). The extractor should still join it into one value.
+    func test_extract_joinsInvoiceNumberSegmentsSeparatedBySpacedSlash() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "Honorarnote Nr. 1234 / 056"
+        ])
+
+        XCTAssertEqual(result.invoiceNumber, "1234/056")
+    }
+
+    /// Round-euro amounts are commonly written "100,-" instead of "100,00" on Austrian invoices.
+    func test_extract_parsesWholeEuroAmountWrittenWithDash() {
+        let result = InvoiceFieldExtractor().extract(from: ["Honorar: 80,-"])
+
+        XCTAssertEqual(result.amount, Decimal(string: "80.00"))
+    }
+
+    /// Dentists commonly abbreviate "Rechnungsnummer" as "Re.Nr." / "Re-Nr.".
+    func test_extract_findsInvoiceNumberLabelledReNr() {
+        let result = InvoiceFieldExtractor().extract(from: ["Re.Nr. 4471100"])
+
+        XCTAssertEqual(result.invoiceNumber, "4471100")
+    }
+
+    /// "Rechnungs-Nr:" (with a hyphen before "Nr") is another common label spelling.
+    func test_extract_findsInvoiceNumberLabelledRechnungsHyphenNr() {
+        let result = InvoiceFieldExtractor().extract(from: ["Rechnungs-Nr: 990122-40021"])
+
+        XCTAssertEqual(result.invoiceNumber, "990122-40021")
+    }
+
+    /// A line-item unit price (e.g. "4 x 0,30") earlier in the OCR'd text must not win over
+    /// the actual total, which is introduced by a label like "Rechnungsbetrag".
+    func test_extract_prefersAmountNearTotalKeywordOverEarlierLineItemPrice() {
+        let result = InvoiceFieldExtractor().extract(from: [
+            "2 x 1,50",
+            "Rechnungsbetrag EUR:",
+            "63,40"
+        ])
+
+        XCTAssertEqual(result.amount, Decimal(string: "63.40"))
+    }
 }
