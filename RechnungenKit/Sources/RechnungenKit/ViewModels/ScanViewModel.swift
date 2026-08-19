@@ -35,6 +35,15 @@ public final class ScanViewModel {
     }
 
     public func save(pdfData: Data, findingPDFData: Data? = nil) async {
+        var missingFields: [String] = []
+        if invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { missingFields.append("Rechnungsnummer") }
+        if date == nil { missingFields.append("Rechnungsdatum") }
+        if selectedProviderID == nil { missingFields.append("Arzt") }
+        guard missingFields.isEmpty else {
+            errorMessage = "Bitte folgende Pflichtfelder ausfüllen: \(missingFields.joined(separator: ", "))"
+            return
+        }
+
         let normalizedAmount = amountText.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
         guard let amount = Decimal(string: normalizedAmount), amount > 0 else {
             errorMessage = "Ungültiger Betrag"

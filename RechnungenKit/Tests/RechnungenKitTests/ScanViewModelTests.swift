@@ -40,6 +40,7 @@ final class ScanViewModelTests: XCTestCase {
         let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
         viewModel.invoiceNumber = "2025-72"
         viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
 
         await viewModel.save(pdfData: Data("pdf-bytes".utf8))
 
@@ -69,6 +70,7 @@ final class ScanViewModelTests: XCTestCase {
         let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
         viewModel.invoiceNumber = "2025-72"
         viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
 
         await viewModel.save(pdfData: Data("pdf-bytes".utf8), findingPDFData: Data("befund-bytes".utf8))
 
@@ -86,6 +88,7 @@ final class ScanViewModelTests: XCTestCase {
         let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
         viewModel.invoiceNumber = "2025-72"
         viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
 
         await viewModel.save(pdfData: Data("pdf-bytes".utf8))
 
@@ -100,6 +103,7 @@ final class ScanViewModelTests: XCTestCase {
         let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
 
         viewModel.applyExtractedFields(ExtractedInvoiceFields(invoiceNumber: "2025-72", amount: Decimal(string: "19.99"), date: nil))
+        viewModel.selectedProviderID = UUID()
         await viewModel.save(pdfData: Data("pdf-bytes".utf8))
 
         XCTAssertTrue(viewModel.didSave)
@@ -124,6 +128,7 @@ final class ScanViewModelTests: XCTestCase {
         let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
         viewModel.invoiceNumber = "2025-72"
         viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
 
         await viewModel.save(pdfData: Data("pdf-bytes".utf8))
 
@@ -139,10 +144,71 @@ final class ScanViewModelTests: XCTestCase {
         viewModel.amountText = "150,00"
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         viewModel.date = date
+        viewModel.selectedProviderID = UUID()
 
         await viewModel.save(pdfData: Data("pdf-bytes".utf8))
 
         let stored = await repository.storedInvoices
         XCTAssertEqual(stored.first?.date, date)
+    }
+
+    func test_scanViewModel_save_withoutInvoiceNumber_setsErrorAndDoesNotSave() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertFalse(viewModel.didSave)
+        XCTAssertEqual(viewModel.errorMessage, "Bitte folgende Pflichtfelder ausfüllen: Rechnungsnummer")
+        let stored = await repository.storedInvoices
+        XCTAssertTrue(stored.isEmpty)
+    }
+
+    func test_scanViewModel_save_withoutDate_setsErrorAndDoesNotSave() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+        viewModel.selectedProviderID = UUID()
+        viewModel.date = nil
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertFalse(viewModel.didSave)
+        XCTAssertEqual(viewModel.errorMessage, "Bitte folgende Pflichtfelder ausfüllen: Rechnungsdatum")
+        let stored = await repository.storedInvoices
+        XCTAssertTrue(stored.isEmpty)
+    }
+
+    func test_scanViewModel_save_withoutProvider_setsErrorAndDoesNotSave() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.invoiceNumber = "2025-72"
+        viewModel.amountText = "150,00"
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertFalse(viewModel.didSave)
+        XCTAssertEqual(viewModel.errorMessage, "Bitte folgende Pflichtfelder ausfüllen: Arzt")
+        let stored = await repository.storedInvoices
+        XCTAssertTrue(stored.isEmpty)
+    }
+
+    func test_scanViewModel_save_withMultipleMissingFields_listsAllOfThemInErrorMessage() async {
+        let repository = MockInvoiceRepository()
+        let fileStorage = LocalFileStorage(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let viewModel = ScanViewModel(repository: repository, fileStorage: fileStorage)
+        viewModel.amountText = "150,00"
+        viewModel.date = nil
+
+        await viewModel.save(pdfData: Data("pdf-bytes".utf8))
+
+        XCTAssertFalse(viewModel.didSave)
+        XCTAssertEqual(viewModel.errorMessage, "Bitte folgende Pflichtfelder ausfüllen: Rechnungsnummer, Rechnungsdatum, Arzt")
     }
 }
