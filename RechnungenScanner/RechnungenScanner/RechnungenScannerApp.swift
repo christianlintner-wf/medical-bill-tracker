@@ -120,11 +120,7 @@ private struct RootView: View {
                         exportService: exportService,
                         providerLinksStore: providerLinksStore,
                         patientInsuranceStore: patientInsuranceStore
-                    ),
-                    onDeleted: {
-                        selectedInvoice = nil
-                        Task { await syncAndReload() }
-                    }
+                    )
                 )
             }
             .iPadFullHeightSheet()
