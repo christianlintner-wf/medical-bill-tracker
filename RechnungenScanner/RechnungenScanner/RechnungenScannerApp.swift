@@ -56,11 +56,13 @@ private struct RootView: View {
 
     private enum ScanFlowStep: Identifiable {
         case scanning
+        case importingFile
         case reviewing(Data)
 
         var id: String {
             switch self {
             case .scanning: return "scanning"
+            case .importingFile: return "importingFile"
             case .reviewing: return "reviewing"
             }
         }
@@ -89,7 +91,8 @@ private struct RootView: View {
         InvoiceBoardView(
             viewModel: boardViewModel,
             onSelectInvoice: { selectedInvoice = $0 },
-            onAddInvoice: { scanFlowStep = .scanning },
+            onScanInvoice: { scanFlowStep = .scanning },
+            onImportInvoice: { scanFlowStep = .importingFile },
             onShowSettings: { isShowingSettings = true },
             onInvoiceMoved: { Task { await syncAndReload() } }
         )
@@ -99,6 +102,11 @@ private struct RootView: View {
                 case .scanning:
                     ScanFlowView(
                         onScanned: { data in scanFlowStep = .reviewing(data) },
+                        onCancelled: { scanFlowStep = nil }
+                    )
+                case .importingFile:
+                    PDFImportPicker(
+                        onImported: { data in scanFlowStep = .reviewing(data) },
                         onCancelled: { scanFlowStep = nil }
                     )
                 case .reviewing(let pdfData):

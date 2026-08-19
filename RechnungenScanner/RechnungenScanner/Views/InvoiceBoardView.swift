@@ -4,7 +4,8 @@ import RechnungenKit
 struct InvoiceBoardView: View {
     let viewModel: InvoiceBoardViewModel
     let onSelectInvoice: (Invoice) -> Void
-    let onAddInvoice: () -> Void
+    let onScanInvoice: () -> Void
+    let onImportInvoice: () -> Void
     let onShowSettings: () -> Void
     let onInvoiceMoved: () -> Void
 
@@ -37,7 +38,10 @@ struct InvoiceBoardView: View {
             .navigationTitle("Arztrechnungen")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Scannen", systemImage: "plus", action: onAddInvoice)
+                    Button("Scannen", systemImage: "camera", action: onScanInvoice)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Importieren", systemImage: "doc.badge.plus", action: onImportInvoice)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Einstellungen", systemImage: "gearshape", action: onShowSettings)

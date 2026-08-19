@@ -8,6 +8,7 @@ struct InvoiceFormView: View {
     let onSaved: () -> Void
 
     @State private var isScanningFinding = false
+    @State private var isImportingFinding = false
     @State private var findingPDFData: Data?
 
     var body: some View {
@@ -34,6 +35,7 @@ struct InvoiceFormView: View {
                     }
                 } else {
                     Button("Befund scannen") { isScanningFinding = true }
+                    Button("Befund importieren") { isImportingFinding = true }
                 }
             }
             Section("Zuordnung") {
@@ -71,6 +73,16 @@ struct InvoiceFormView: View {
                     isScanningFinding = false
                 },
                 onCancelled: { isScanningFinding = false }
+            )
+            .iPadFullHeightSheet()
+        }
+        .sheet(isPresented: $isImportingFinding) {
+            PDFImportPicker(
+                onImported: { data in
+                    findingPDFData = data
+                    isImportingFinding = false
+                },
+                onCancelled: { isImportingFinding = false }
             )
             .iPadFullHeightSheet()
         }

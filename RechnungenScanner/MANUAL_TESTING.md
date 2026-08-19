@@ -24,6 +24,14 @@ Auf einem echten iPhone durchführen (Simulator hat keine Kamera).
 - [x] Speichern ohne Befund-Scan funktioniert weiterhin wie bisher (kein Befund-Eintrag in SeaTable)
 - [x] Speichern mit Befund-Scan legt nach dem Sync in SeaTable eine neue Zeile in der Tabelle "Befunde" an, mit hochgeladenem PDF in der Spalte "Befund" und Link zur zugehörigen Zeile in "Arztrechnungen"
 
+## Datei-Import (digital erhaltene Rechnungen)
+- [ ] Im Board-Toolbar gibt es neben "Scannen" (Kamera-Icon) einen zweiten Button "Importieren" (Dokument-Icon)
+- [ ] "Importieren" öffnet den System-Dateiauswahl-Dialog, gefiltert auf PDF-Dateien
+- [ ] Ein PDF auswählen (z. B. eine per Mail erhaltene Honorarnote aus der Dateien-App/iCloud Drive) öffnet danach das vorausgefüllte Formular, genau wie nach einem Kamera-Scan (OCR-Felderkennung greift auf die erste Seite des importierten PDFs zu)
+- [ ] Den Dateiauswahl-Dialog abbrechen führt zurück zum Board, ohne dass ein Formular erscheint
+- [ ] Im Formular gibt es im Abschnitt "Befund" neben "Befund scannen" einen Button "Befund importieren", der ebenfalls den Dateiauswahl-Dialog öffnet und ein ausgewähltes PDF als Befund übernimmt
+- [ ] Speichern einer per Datei-Import angelegten Rechnung synchronisiert wie gewohnt nach SeaTable (inkl. hochgeladenem PDF)
+
 ## Einreichungs-Export
 **Voraussetzung:** Die Tabelle `Arztrechnungen` in der SeaTable-Base braucht eine Spalte `Datum` vom Typ "Datum". Ohne diese Spalte schlägt das Anlegen/Synchronisieren jeder neuen Rechnung dauerhaft fehl (Outbox-Eintrag bleibt für immer hängen), und beim nächsten Pull-Refresh wird ein lokal erfasstes Datum stillschweigend wieder auf "kein Datum" zurückgesetzt.
 
