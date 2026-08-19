@@ -1,5 +1,6 @@
 import SwiftUI
 import RechnungenKit
+import UIKit
 
 @main
 struct RechnungenScannerApp: App {
@@ -90,22 +91,25 @@ private struct RootView: View {
             onInvoiceMoved: { Task { await syncAndReload() } }
         )
         .sheet(item: $scanFlowStep) { step in
-            switch step {
-            case .scanning:
-                ScanFlowView(
-                    onScanned: { data in scanFlowStep = .reviewing(data) },
-                    onCancelled: { scanFlowStep = nil }
-                )
-            case .reviewing(let pdfData):
-                ScanReviewFlow(
-                    pdfData: pdfData,
-                    repository: repository,
-                    onSaved: {
-                        scanFlowStep = nil
-                        Task { await syncAndReload() }
-                    }
-                )
+            Group {
+                switch step {
+                case .scanning:
+                    ScanFlowView(
+                        onScanned: { data in scanFlowStep = .reviewing(data) },
+                        onCancelled: { scanFlowStep = nil }
+                    )
+                case .reviewing(let pdfData):
+                    ScanReviewFlow(
+                        pdfData: pdfData,
+                        repository: repository,
+                        onSaved: {
+                            scanFlowStep = nil
+                            Task { await syncAndReload() }
+                        }
+                    )
+                }
             }
+            .iPadFullHeightSheet()
         }
         .sheet(item: $selectedInvoice) { invoice in
             NavigationStack {
@@ -119,6 +123,7 @@ private struct RootView: View {
                     )
                 )
             }
+            .iPadFullHeightSheet()
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
@@ -132,6 +137,7 @@ private struct RootView: View {
                 },
                 syncErrorMessage: lastSyncError
             )
+            .iPadFullHeightSheet()
         }
         .task { await syncAndReload() }
         .onChange(of: scenePhase) { _, newPhase in
@@ -144,6 +150,20 @@ private struct RootView: View {
         await syncEngine.processOutbox()
         await boardViewModel.load()
         lastSyncError = await syncEngine.lastOutboxError()
+    }
+}
+
+extension View {
+    /// Forces a `.sheet` to present at full height on iPad (matching iPhone's
+    /// default), while keeping the native swipe-to-dismiss gesture intact.
+    /// No-op on iPhone.
+    @ViewBuilder
+    func iPadFullHeightSheet() -> some View {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            self.presentationDetents([.large])
+        } else {
+            self
+        }
     }
 }
 

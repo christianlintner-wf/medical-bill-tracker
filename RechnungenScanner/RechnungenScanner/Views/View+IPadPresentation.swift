@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension View {
     /// Forces a `.sheet` to present at full height on iPad (matching iPhone's

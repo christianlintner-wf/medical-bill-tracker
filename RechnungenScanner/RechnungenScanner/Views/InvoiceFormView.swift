@@ -72,6 +72,7 @@ struct InvoiceFormView: View {
                 },
                 onCancelled: { isScanningFinding = false }
             )
+            .iPadFullHeightSheet()
         }
     }
 
