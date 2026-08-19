@@ -7,6 +7,7 @@ actor MockInvoiceRepository: InvoiceRepositoryProtocol {
     var storedFindings: [Finding] = []
     var statusUpdates: [(invoiceID: UUID, status: InvoiceStatus)] = []
     var dateUpdates: [(invoiceID: UUID, date: Date)] = []
+    var deletedInvoiceIDs: [UUID] = []
     var errorToThrow: Error?
 
     func refresh() async throws {
@@ -49,6 +50,12 @@ actor MockInvoiceRepository: InvoiceRepositoryProtocol {
         if let index = storedInvoices.firstIndex(where: { $0.id == invoiceID }) {
             storedInvoices[index].date = newDate
         }
+    }
+
+    func deleteInvoice(invoiceID: UUID) async throws {
+        if let errorToThrow { throw errorToThrow }
+        deletedInvoiceIDs.append(invoiceID)
+        storedInvoices.removeAll { $0.id == invoiceID }
     }
 
     func createFinding(_ finding: Finding) async throws {

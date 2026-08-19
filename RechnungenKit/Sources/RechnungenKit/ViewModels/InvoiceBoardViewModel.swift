@@ -34,4 +34,17 @@ public final class InvoiceBoardViewModel {
             errorMessage = String(describing: error)
         }
     }
+
+    public func deleteInvoice(_ invoice: Invoice) async {
+        guard invoice.status == .open else {
+            errorMessage = "Nur offene Rechnungen können gelöscht werden."
+            return
+        }
+        invoicesByStatus[invoice.status]?.removeAll { $0.id == invoice.id }
+        do {
+            try await repository.deleteInvoice(invoiceID: invoice.id)
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
 }

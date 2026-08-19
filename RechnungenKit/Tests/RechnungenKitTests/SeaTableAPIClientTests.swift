@@ -158,6 +158,27 @@ final class SeaTableAPIClientTests: XCTestCase {
         XCTAssertEqual(updatedRow?["Status"] as? String, "Erledigt")
     }
 
+    func test_deleteRow_sendsDELETEWithTableNameAndRowIDs() async throws {
+        var capturedBody: [String: Any]?
+        URLProtocolStub.handler = { request in
+            if request.url!.path.contains("app-access-token") {
+                return .init(statusCode: 200, data: Data(Self.accessTokenJSON.utf8))
+            }
+            if request.httpMethod == "DELETE" {
+                if let bodyData = request.httpBodyStreamData() {
+                    capturedBody = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any]
+                }
+                return .init(statusCode: 200, data: Data("{}".utf8))
+            }
+            return .init(statusCode: 404, data: Data())
+        }
+
+        try await makeClient().deleteRow(table: "Arztrechnungen", rowID: "row-1")
+
+        XCTAssertEqual(capturedBody?["table_name"] as? String, "Arztrechnungen")
+        XCTAssertEqual(capturedBody?["row_ids"] as? [String], ["row-1"])
+    }
+
     func test_addLink_sendsRequestToLinksEndpointWithResolvedIDs() async throws {
         var capturedBody: [String: Any]?
         var capturedPath: String?

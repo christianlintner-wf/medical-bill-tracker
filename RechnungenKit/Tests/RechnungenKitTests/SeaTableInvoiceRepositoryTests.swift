@@ -135,6 +135,39 @@ final class SeaTableInvoiceRepositoryTests: XCTestCase {
         XCTAssertTrue(pending.contains { $0.operationRawValue == OutboxOperation.updateInvoiceStatus.rawValue })
     }
 
+    func test_deleteInvoice_whenSynced_keepsLocalRowButEnqueuesOutboxAndHidesFromAllInvoices() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        let localStore = try makeLocalStore()
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
+        let invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        try await repository.createInvoice(invoice)
+        try await localStore.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+
+        try await repository.deleteInvoice(invoiceID: invoice.id)
+
+        let stored = try await localStore.invoice(byLocalID: invoice.id)
+        XCTAssertNotNil(stored, "the local row must survive until sync so the outbox still knows the remoteRowID")
+        let pending = try await localStore.pendingOutboxEntries()
+        XCTAssertTrue(pending.contains { $0.operationRawValue == OutboxOperation.deleteInvoice.rawValue })
+        let visibleInvoices = try await repository.invoices()
+        XCTAssertTrue(visibleInvoices.isEmpty)
+    }
+
+    func test_deleteInvoice_whenNeverSynced_deletesLocallyWithoutEnqueuingOutbox() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        let localStore = try makeLocalStore()
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
+        let invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        try await repository.createInvoice(invoice)
+
+        try await repository.deleteInvoice(invoiceID: invoice.id)
+
+        let stored = try await localStore.invoice(byLocalID: invoice.id)
+        XCTAssertNil(stored)
+        let pending = try await localStore.pendingOutboxEntries()
+        XCTAssertTrue(pending.isEmpty)
+    }
+
     func test_createFinding_persistsLocallyAndEnqueuesOutbox() async throws {
         let apiClient = MockSeaTableAPIClient()
         let localStore = try makeLocalStore()

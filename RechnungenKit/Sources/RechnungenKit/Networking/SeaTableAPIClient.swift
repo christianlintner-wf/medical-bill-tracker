@@ -191,6 +191,20 @@ public actor SeaTableAPIClient: SeaTableAPIClientProtocol {
         try Self.validate(response: response, data: data)
     }
 
+    public func deleteRow(table: String, rowID: String) async throws {
+        let token = try await baseAccessToken()
+        var request = URLRequest(url: rowsURL(dtableServer: token.dtableServer, dtableUUID: token.dtableUUID))
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "table_name": table,
+            "row_ids": [rowID]
+        ])
+        let (data, response) = try await session.data(for: request)
+        try Self.validate(response: response, data: data)
+    }
+
     /// Sets a link-column value between two rows. SeaTable's row create/update endpoints
     /// silently drop values written to link columns (verified against the real API) - only
     /// this dedicated endpoint actually establishes the link.

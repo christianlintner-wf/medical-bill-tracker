@@ -38,6 +38,8 @@ public actor SyncEngine {
                 try await syncUpdateStatus(localID: entry.targetLocalID)
             case .updateInvoiceDate:
                 try await syncUpdateDate(localID: entry.targetLocalID)
+            case .deleteInvoice:
+                try await syncDeleteInvoice(localID: entry.targetLocalID)
             case .uploadInvoiceFile:
                 try await syncUploadFile(localID: entry.targetLocalID)
             case .createFinding:
@@ -115,6 +117,14 @@ public actor SyncEngine {
             rowID: remoteRowID,
             fields: ["Datum": .string(SeaTableDateFormatter.string(from: date))]
         )
+    }
+
+    private func syncDeleteInvoice(localID: UUID) async throws {
+        guard let invoice = try await localStore.invoice(byLocalID: localID) else { return }
+        if let remoteRowID = invoice.remoteRowID {
+            try await apiClient.deleteRow(table: "Arztrechnungen", rowID: remoteRowID)
+        }
+        try await localStore.deleteInvoiceImmediately(id: localID)
     }
 
     private func syncUploadFile(localID: UUID) async throws {

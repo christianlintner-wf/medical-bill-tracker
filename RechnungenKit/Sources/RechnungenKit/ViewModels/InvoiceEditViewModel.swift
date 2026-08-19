@@ -7,6 +7,7 @@ public final class InvoiceEditViewModel {
     public var finding: Finding?
     public var errorMessage: String?
     public var exportMessage: String?
+    public private(set) var didDelete = false
 
     private let repository: InvoiceRepositoryProtocol
     private let exportService: SubmissionExportService
@@ -48,6 +49,19 @@ public final class InvoiceEditViewModel {
         invoice.date = newDate
         do {
             try await repository.updateDate(invoiceID: invoice.id, newDate: newDate)
+        } catch {
+            errorMessage = String(describing: error)
+        }
+    }
+
+    public func delete() async {
+        guard invoice.status == .open else {
+            errorMessage = "Nur offene Rechnungen können gelöscht werden."
+            return
+        }
+        do {
+            try await repository.deleteInvoice(invoiceID: invoice.id)
+            didDelete = true
         } catch {
             errorMessage = String(describing: error)
         }

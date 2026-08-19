@@ -6,6 +6,7 @@ public enum OutboxOperation: String, Codable, Sendable {
     case createInvoice
     case updateInvoiceStatus
     case updateInvoiceDate
+    case deleteInvoice
     case uploadInvoiceFile
     case createFinding
     case uploadFindingFile

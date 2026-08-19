@@ -58,6 +58,15 @@ public actor SeaTableInvoiceRepository: InvoiceRepositoryProtocol {
         try await localStore.enqueueOutboxEntry(operation: .updateInvoiceDate, targetLocalID: invoiceID)
     }
 
+    public func deleteInvoice(invoiceID: UUID) async throws {
+        guard let invoice = try await localStore.invoice(byLocalID: invoiceID) else { return }
+        if invoice.remoteRowID == nil {
+            try await localStore.deleteInvoiceImmediately(id: invoiceID)
+        } else {
+            try await localStore.enqueueOutboxEntry(operation: .deleteInvoice, targetLocalID: invoiceID)
+        }
+    }
+
     public func createFinding(_ finding: Finding) async throws {
         try await localStore.upsertFinding(finding)
         try await localStore.enqueueOutboxEntry(operation: .createFinding, targetLocalID: finding.id)

@@ -145,6 +145,51 @@ final class InvoiceEditViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, "Bitte zuerst einen Einreichungs-Ordner in den Einstellungen wählen.")
     }
 
+    func test_delete_withOpenStatus_callsRepositoryAndSetsDidDelete() async throws {
+        let repository = MockInvoiceRepository()
+        let exportService = try makeExportService(
+            submissionRoot: try makeTempDirectory(),
+            fileStorage: LocalFileStorage(directory: try makeTempDirectory())
+        )
+        let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, status: .open)
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
+
+        await viewModel.delete()
+
+        XCTAssertTrue(viewModel.didDelete)
+        let deletedIDs = await repository.deletedInvoiceIDs
+        XCTAssertEqual(deletedIDs, [invoice.id])
+    }
+
+    func test_delete_withNonOpenStatus_isRejectedAndSetsErrorMessage() async throws {
+        let repository = MockInvoiceRepository()
+        let exportService = try makeExportService(
+            submissionRoot: try makeTempDirectory(),
+            fileStorage: LocalFileStorage(directory: try makeTempDirectory())
+        )
+        let invoice = Invoice(invoiceNumber: "2026-1", amount: 10, patient: .christian, status: .done)
+        let viewModel = InvoiceEditViewModel(
+            invoice: invoice,
+            repository: repository,
+            exportService: exportService,
+            providerLinksStore: makeProviderLinksStore(),
+            patientInsuranceStore: makePatientInsuranceStore()
+        )
+
+        await viewModel.delete()
+
+        XCTAssertFalse(viewModel.didDelete)
+        XCTAssertNotNil(viewModel.errorMessage)
+        let deletedIDs = await repository.deletedInvoiceIDs
+        XCTAssertTrue(deletedIDs.isEmpty)
+    }
+
     func test_portalURL_returnsConfiguredLinkForResolvedProvider() throws {
         let repository = MockInvoiceRepository()
         let exportService = try makeExportService(

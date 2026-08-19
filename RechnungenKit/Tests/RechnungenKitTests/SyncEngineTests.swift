@@ -145,6 +145,28 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertNil(syncedFinding?.remoteRowID)
     }
 
+    func test_processOutbox_deletesRemoteRowThenRemovesLocalInvoice() async throws {
+        let apiClient = MockSeaTableAPIClient()
+        await apiClient.setNextCreatedRowID("remote-invoice-1", forTable: "Arztrechnungen")
+        let localStore = try makeLocalStore()
+        let repository = SeaTableInvoiceRepository(apiClient: apiClient, localStore: localStore)
+        let invoice = Invoice(invoiceNumber: "2025-90", amount: 55, patient: .melanie)
+        try await repository.createInvoice(invoice)
+        let engine = SyncEngine(apiClient: apiClient, localStore: localStore, fileStorage: makeFileStorage())
+        await engine.processOutbox() // syncs the create first, assigning a remoteRowID
+
+        try await repository.deleteInvoice(invoiceID: invoice.id)
+        await engine.processOutbox()
+
+        let deletedRows = await apiClient.deletedRows
+        XCTAssertEqual(deletedRows.first?.table, "Arztrechnungen")
+        XCTAssertEqual(deletedRows.first?.rowID, "remote-invoice-1")
+        let stored = try await localStore.invoice(byLocalID: invoice.id)
+        XCTAssertNil(stored)
+        let pending = try await localStore.pendingOutboxEntries()
+        XCTAssertTrue(pending.isEmpty)
+    }
+
     func test_processOutbox_sendsDatumFieldWhenInvoiceHasDate() async throws {
         let apiClient = MockSeaTableAPIClient()
         await apiClient.setNextCreatedRowID("remote-invoice-1", forTable: "Arztrechnungen")

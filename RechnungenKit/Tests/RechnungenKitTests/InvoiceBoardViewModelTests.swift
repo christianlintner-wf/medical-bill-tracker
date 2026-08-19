@@ -46,6 +46,35 @@ final class InvoiceBoardViewModelTests: XCTestCase {
         XCTAssertTrue(updates.isEmpty)
     }
 
+    func test_deleteInvoice_withOpenStatus_removesFromLocalGroupingAndCallsRepository() async throws {
+        let repository = MockInvoiceRepository()
+        let invoice = Invoice(invoiceNumber: "A", amount: 10, patient: .christian, status: .open)
+        await repository.setInvoices([invoice])
+        let viewModel = InvoiceBoardViewModel(repository: repository)
+        await viewModel.load()
+
+        await viewModel.deleteInvoice(invoice)
+
+        XCTAssertEqual(viewModel.invoicesByStatus[.open]?.count, 0)
+        let deletedIDs = await repository.deletedInvoiceIDs
+        XCTAssertEqual(deletedIDs, [invoice.id])
+    }
+
+    func test_deleteInvoice_withNonOpenStatus_isRejectedAndSetsErrorMessage() async throws {
+        let repository = MockInvoiceRepository()
+        let invoice = Invoice(invoiceNumber: "A", amount: 10, patient: .christian, status: .done)
+        await repository.setInvoices([invoice])
+        let viewModel = InvoiceBoardViewModel(repository: repository)
+        await viewModel.load()
+
+        await viewModel.deleteInvoice(invoice)
+
+        XCTAssertEqual(viewModel.invoicesByStatus[.done]?.count, 1)
+        XCTAssertNotNil(viewModel.errorMessage)
+        let deletedIDs = await repository.deletedInvoiceIDs
+        XCTAssertTrue(deletedIDs.isEmpty)
+    }
+
     func test_invoiceEditViewModel_updateStatus_updatesInvoiceAndCallsRepository() async throws {
         let repository = MockInvoiceRepository()
         let invoice = Invoice(invoiceNumber: "A", amount: 10, patient: .christian, status: .open)

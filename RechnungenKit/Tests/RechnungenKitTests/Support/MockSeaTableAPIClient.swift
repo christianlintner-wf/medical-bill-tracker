@@ -5,6 +5,7 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     var rowsByTable: [String: [SeaTableRow]] = [:]
     var createdRows: [(table: String, fields: [String: SeaTableValue])] = []
     var updatedRows: [(table: String, rowID: String, fields: [String: SeaTableValue])] = []
+    var deletedRows: [(table: String, rowID: String)] = []
     var addedLinks: [(table: String, column: String, rowID: String, otherRowID: String)] = []
     var nextCreatedRowID = "generated-id"
     var nextCreatedRowIDByTable: [String: String] = [:]
@@ -25,6 +26,11 @@ actor MockSeaTableAPIClient: SeaTableAPIClientProtocol {
     func updateRow(table: String, rowID: String, fields: [String: SeaTableValue]) async throws {
         if let errorToThrow { throw errorToThrow }
         updatedRows.append((table, rowID, fields))
+    }
+
+    func deleteRow(table: String, rowID: String) async throws {
+        if let errorToThrow { throw errorToThrow }
+        deletedRows.append((table, rowID))
     }
 
     func addLink(table: String, column: String, rowID: String, otherRowID: String) async throws {

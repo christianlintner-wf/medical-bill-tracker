@@ -354,6 +354,32 @@ final class LocalStoreTests: XCTestCase {
         XCTAssertEqual(found?.id, finding.id)
     }
 
+    func test_deleteInvoiceImmediately_removesInvoiceAndItsOutboxEntries() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        try await store.enqueueOutboxEntry(operation: .createInvoice, targetLocalID: invoice.id)
+
+        try await store.deleteInvoiceImmediately(id: invoice.id)
+
+        let stored = try await store.invoice(byLocalID: invoice.id)
+        XCTAssertNil(stored)
+        let pending = try await store.pendingOutboxEntries()
+        XCTAssertTrue(pending.isEmpty)
+    }
+
+    func test_allInvoices_excludesInvoiceWithPendingDeleteOutboxEntry() async throws {
+        let store = try makeStore()
+        let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)
+        try await store.upsertInvoice(invoice)
+        try await store.setInvoiceRemoteRowID(localID: invoice.id, remoteRowID: "row-1")
+        try await store.enqueueOutboxEntry(operation: .deleteInvoice, targetLocalID: invoice.id)
+
+        let all = try await store.allInvoices()
+
+        XCTAssertTrue(all.isEmpty)
+    }
+
     func test_finding_forInvoiceID_returnsNilWhenNoneExists() async throws {
         let store = try makeStore()
         let invoice = Invoice(invoiceNumber: "2025-72", amount: 150, patient: .christian)

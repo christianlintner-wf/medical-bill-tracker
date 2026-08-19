@@ -62,7 +62,24 @@ public actor LocalStore {
     }
 
     public func allInvoices() throws -> [Invoice] {
-        try modelContext.fetch(FetchDescriptor<InvoiceEntity>()).map { try makeInvoice(from: $0) }
+        let pendingDeletionIDs = try pendingTargetIDs(forOperation: .deleteInvoice)
+        return try modelContext.fetch(FetchDescriptor<InvoiceEntity>())
+            .filter { !pendingDeletionIDs.contains($0.id) }
+            .map { try makeInvoice(from: $0) }
+    }
+
+    private func pendingTargetIDs(forOperation operation: OutboxOperation) throws -> Set<UUID> {
+        let opRaw = operation.rawValue
+        let descriptor = FetchDescriptor<OutboxEntryEntity>(predicate: #Predicate { $0.operationRawValue == opRaw })
+        return Set(try modelContext.fetch(descriptor).map(\.targetLocalID))
+    }
+
+    public func deleteInvoiceImmediately(id: UUID) throws {
+        let descriptor = FetchDescriptor<InvoiceEntity>(predicate: #Predicate { $0.id == id })
+        guard let entity = try modelContext.fetch(descriptor).first else { return }
+        try deleteOutboxEntries(targetLocalID: id)
+        modelContext.delete(entity)
+        try modelContext.save()
     }
 
     public func invoice(byLocalID id: UUID) throws -> Invoice? {
