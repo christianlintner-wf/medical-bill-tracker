@@ -11,26 +11,29 @@ struct RechnungenScannerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let services = root.services {
-                RootView(
-                    repository: services.repository,
-                    syncEngine: services.syncEngine,
-                    exportService: SubmissionExportService(fileStorage: services.fileStorage, bookmarkStore: bookmarkStore),
-                    providerLinksStore: providerLinksStore,
-                    patientInsuranceStore: patientInsuranceStore,
-                    bookmarkStore: bookmarkStore,
-                    onReload: { root.reload() }
-                )
-                .id(ObjectIdentifier(services.syncEngine))
-            } else {
-                SettingsView(
-                    keychainService: KeychainService(),
-                    bookmarkStore: bookmarkStore,
-                    providerLinksStore: providerLinksStore,
-                    patientInsuranceStore: patientInsuranceStore,
-                    onSaved: { root.reload() }
-                )
+            Group {
+                if let services = root.services {
+                    RootView(
+                        repository: services.repository,
+                        syncEngine: services.syncEngine,
+                        exportService: SubmissionExportService(fileStorage: services.fileStorage, bookmarkStore: bookmarkStore),
+                        providerLinksStore: providerLinksStore,
+                        patientInsuranceStore: patientInsuranceStore,
+                        bookmarkStore: bookmarkStore,
+                        onReload: { root.reload() }
+                    )
+                    .id(ObjectIdentifier(services.syncEngine))
+                } else {
+                    SettingsView(
+                        keychainService: KeychainService(),
+                        bookmarkStore: bookmarkStore,
+                        providerLinksStore: providerLinksStore,
+                        patientInsuranceStore: patientInsuranceStore,
+                        onSaved: { root.reload() }
+                    )
+                }
             }
+            .preferredColorScheme(.light)
         }
     }
 }
